@@ -1,39 +1,30 @@
-function startPayment(){
+async function startPayment(){
+
+const response = await fetch("/api/create-order", {
+method: "POST"
+});
+
+const order = await response.json();
 
 const options = {
-key: "YOUR_KEY_ID",
 
-amount: 100, // ₹1 = 100 paise
+key: "YOUR_TEST_KEY_ID",
+
+amount: order.amount,
 
 currency: "INR",
 
 name: "Agentic Wallet",
 
-description: "Demo Product",
+description: "Test Payment",
 
-image: "https://cdn-icons-png.flaticon.com/512/2331/2331970.png",
+order_id: order.id,
 
-handler: function (response) {
+handler: async function (response) {
 
 alert("Payment Successful!");
 
 console.log(response);
-
-},
-
-prefill: {
-
-name: "Test User",
-
-email: "test@example.com",
-
-contact: "9999999999"
-
-},
-
-theme: {
-
-color: "#000000"
 
 }
 
