@@ -1,27 +1,128 @@
-import { MongoClient } from "mongodb";
+import { MongoClient } from "mongodb"
+import bcrypt from "bcryptjs"
+import jwt from "jsonwebtoken"
 
-let client;
+let client
 
-export default async function handler(req, res) {
+async function getDB(){
 
-try {
+if(!client){
 
-if (!client) {
-client = new MongoClient(process.env.MONGODB_URI);
-await client.connect();
+client = new MongoClient(process.env.MONGODB_URI)
+
+await client.connect()
+
 }
 
-const db = client.db("ragDB");
+return client.db("ragDB")
 
-const products = await db.collection("products").find({}).toArray();
+}
 
-res.status(200).json(products);
+export default async function handler(req,res){
 
-} catch (error) {
+const db = await getDB()
 
-console.error("MongoDB error:", error);
+const action = req.query.action
 
-res.status(500).json({ error: "Database connection failed" });
+/* SIGNUP */
+
+if(action === "signup"){
+
+const {email,password} = req.body
+
+const hash = await bcrypt.hash(password,10)
+
+await db.collection("users").insertOne({
+
+email,
+password:hash
+
+})
+
+return res.json({message:"user created"})
+
+}
+
+/* LOGIN */
+
+if(action === "login"){
+
+const {email,password} = req.body
+
+const user = await db.collection("users").findOne({email})
+
+if(!user){
+
+return res.status(400).json({error:"user not found"})
+
+}
+
+const valid = await bcrypt.compare(password,user.password)
+
+if(!valid){
+
+return res.status(400).json({error:"wrong password"})
+
+}
+
+const token = jwt.sign(
+
+{userId:user._id},
+
+process.env.JWT_SECRET
+
+)
+
+return res.json({token})
+
+}
+
+/* ADD CART */
+
+if(action === "addCart"){
+
+const token = req.headers.authorization
+
+const decoded = jwt.verify(token,process.env.JWT_SECRET)
+
+const {productId} = req.body
+
+await db.collection("cart").insertOne({
+
+userId:decoded.userId,
+productId
+
+})
+
+return res.json({message:"added to cart"})
+
+}
+
+/* GET CART */
+
+if(action === "getCart"){
+
+const token = req.headers.authorization
+
+const decoded = jwt.verify(token,process.env.JWT_SECRET)
+
+const cart = await db.collection("cart").find({
+
+userId:decoded.userId
+
+}).toArray()
+
+return res.json(cart)
+
+}
+
+/* PRODUCTS */
+
+if(action === "products"){
+
+const products = await db.collection("documents").find({}).toArray()
+
+return res.json(products)
 
 }
 
