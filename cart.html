@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Cart</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-10">
+
+<h1 class="text-3xl mb-6">Your Cart</h1>
+
+<div id="cart"></div>
+
+<script>
+
+async function load(){
+
+const token = localStorage.getItem("token")
+
+const res = await fetch("/api/server?action=getCart",{
+
+headers:{
+Authorization:token
+}
+
+})
+
+const data = await res.json()
+
+const container = document.getElementById("cart")
+
+data.forEach(c=>{
+
+container.innerHTML += `
+<div class="bg-white p-4 mb-3 shadow">
+Product ID: ${c.productId}
+</div>
+`
+
+})
+
+}
+
+load()
+
+</script>
+
+</body>
+</html>
