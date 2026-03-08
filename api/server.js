@@ -30,26 +30,26 @@ if(action === "signup"){
 
 const {name,email,password} = req.body
 
+if(!name || !email || !password){
+return res.json({error:"Missing fields"})
+}
+
 const existing = await db.collection("users").findOne({email})
 
 if(existing){
-
 return res.json({error:"User already exists"})
-
 }
 
 const hash = await bcrypt.hash(password,10)
 
-const user = await db.collection("users").insertOne({
-
+const result = await db.collection("users").insertOne({
 name,
 email,
 password:hash
-
 })
 
 const token = jwt.sign(
-{userId:user.insertedId},
+{userId:result.insertedId},
 process.env.JWT_SECRET
 )
 
@@ -69,17 +69,13 @@ const {email,password} = req.body
 const user = await db.collection("users").findOne({email})
 
 if(!user){
-
 return res.json({error:"User not found"})
-
 }
 
 const valid = await bcrypt.compare(password,user.password)
 
 if(!valid){
-
 return res.json({error:"Wrong password"})
-
 }
 
 const token = jwt.sign(
@@ -98,13 +94,10 @@ name:user.name
 
 if(action === "products"){
 
-const products = await db.collection("products").find({}).toArray()
+const products = await db.collection("documents").find({}).toArray()
 
 return res.json(products)
 
 }
-
-
-
 
 }
