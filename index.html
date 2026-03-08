@@ -4,24 +4,46 @@
 <head>
 
 <title>Agentic Wallet</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
 
+.mic-container{
+display:flex;
+justify-content:center;
+align-items:center;
+margin-top:80px;
+}
+
 .mic{
+
 width:140px;
 height:140px;
+
 border-radius:50%;
+
 background:#2563eb;
+
 color:white;
+
 font-size:50px;
+
 display:flex;
 align-items:center;
 justify-content:center;
-box-shadow:0 20px 40px rgba(0,0,0,0.2);
+
 cursor:pointer;
+
+box-shadow:0 20px 40px rgba(0,0,0,0.2);
+
+}
+
+.mic:hover{
+transform:scale(1.05);
+transition:0.2s;
 }
 
 </style>
@@ -40,15 +62,19 @@ window.location.href="auth.html"
 
 <!-- NAVBAR -->
 
-<nav class="bg-white shadow p-4 flex justify-between">
+<nav class="bg-white shadow p-4 flex justify-between items-center">
 
-<div class="font-bold text-xl">
+<div class="text-xl font-bold">
 Agentic Wallet
 </div>
 
-<div>
+<div class="flex items-center gap-6">
 
-<a href="cart.html" class="mr-4 text-blue-500">Cart</a>
+<span id="username" class="text-gray-600"></span>
+
+<a href="cart.html" class="text-blue-500">
+Cart
+</a>
 
 <button onclick="logout()" class="text-red-500">
 Logout
@@ -60,7 +86,7 @@ Logout
 
 <!-- VOICE SEARCH -->
 
-<div class="flex flex-col items-center justify-center h-[80vh] text-center">
+<div class="flex flex-col items-center justify-center text-center h-[80vh]">
 
 <h1 class="text-4xl font-bold mb-4">
 Voice Shopping
@@ -70,8 +96,12 @@ Voice Shopping
 Tap the mic and say what you want
 </p>
 
+<div class="mic-container">
+
 <div id="mic" class="mic">
 🎤
+</div>
+
 </div>
 
 <p id="status" class="mt-6 text-gray-600">
@@ -82,10 +112,23 @@ Tap microphone
 
 <script>
 
+/* Show username */
+
+document.getElementById("username").innerText =
+"Hi " + localStorage.getItem("name")
+
+/* Logout */
+
 function logout(){
+
 localStorage.removeItem("token")
+localStorage.removeItem("name")
+
 window.location.href="auth.html"
+
 }
+
+/* Voice recognition */
 
 const status = document.getElementById("status")
 
@@ -94,21 +137,38 @@ document.getElementById("mic").onclick = () => {
 const SpeechRecognition =
 window.SpeechRecognition || window.webkitSpeechRecognition
 
+if(!SpeechRecognition){
+
+status.innerText="Voice not supported in browser"
+return
+
+}
+
 const recognition = new SpeechRecognition()
+
+recognition.lang="en-US"
 
 recognition.start()
 
-status.innerText = "Listening..."
+status.innerText="Listening..."
 
 recognition.onresult = e => {
 
 const text = e.results[0][0].transcript
 
-status.innerText = "Searching: " + text
+status.innerText="Searching: " + text
 
 localStorage.setItem("query",text)
 
+setTimeout(()=>{
 window.location.href="results.html"
+},700)
+
+}
+
+recognition.onerror = () => {
+
+status.innerText="Voice error, try again"
 
 }
 
