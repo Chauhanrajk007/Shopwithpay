@@ -9,7 +9,15 @@
 
 <script src="https://cdn.tailwindcss.com"></script>
 
+<link rel="icon" href="data:,">
+
 <style>
+
+body{
+font-family: system-ui;
+}
+
+/* mic button */
 
 .mic-container{
 display:flex;
@@ -20,8 +28,8 @@ margin-top:80px;
 
 .mic{
 
-width:140px;
-height:140px;
+width:150px;
+height:150px;
 
 border-radius:50%;
 
@@ -29,7 +37,7 @@ background:#2563eb;
 
 color:white;
 
-font-size:50px;
+font-size:55px;
 
 display:flex;
 align-items:center;
@@ -37,18 +45,56 @@ justify-content:center;
 
 cursor:pointer;
 
-box-shadow:0 20px 40px rgba(0,0,0,0.2);
+box-shadow:0 20px 50px rgba(0,0,0,0.25);
+
+transition:0.2s;
 
 }
 
 .mic:hover{
 transform:scale(1.05);
-transition:0.2s;
+}
+
+/* pulse animation */
+
+.pulse{
+
+position:absolute;
+
+width:200px;
+height:200px;
+
+border-radius:50%;
+
+background:rgba(37,99,235,0.3);
+
+animation:pulse 2s infinite;
+
+}
+
+@keyframes pulse{
+
+0%{
+transform:scale(0.8);
+opacity:0.7;
+}
+
+70%{
+transform:scale(1.3);
+opacity:0;
+}
+
+100%{
+opacity:0;
+}
+
 }
 
 </style>
 
 <script>
+
+/* login check */
 
 if(!localStorage.getItem("token")){
 window.location.href="auth.html"
@@ -72,10 +118,6 @@ Agentic Wallet
 
 <span id="username" class="text-gray-600"></span>
 
-<a href="cart.html" class="text-blue-500">
-Cart
-</a>
-
 <button onclick="logout()" class="text-red-500">
 Logout
 </button>
@@ -84,7 +126,7 @@ Logout
 
 </nav>
 
-<!-- VOICE SEARCH -->
+<!-- MAIN -->
 
 <div class="flex flex-col items-center justify-center text-center h-[80vh]">
 
@@ -93,10 +135,14 @@ Voice Shopping
 </h1>
 
 <p class="text-gray-500 mb-10">
-Tap the mic and say what you want
+Tap the mic and say something like
+<br>
+<b>"gaming mouse"</b>
 </p>
 
-<div class="mic-container">
+<div class="mic-container relative">
+
+<div class="pulse"></div>
 
 <div id="mic" class="mic">
 🎤
@@ -112,12 +158,12 @@ Tap microphone
 
 <script>
 
-/* Show username */
+/* show username */
 
 document.getElementById("username").innerText =
 "Hi " + localStorage.getItem("name")
 
-/* Logout */
+/* logout */
 
 function logout(){
 
@@ -128,7 +174,7 @@ window.location.href="auth.html"
 
 }
 
-/* Voice recognition */
+/* voice recognition */
 
 const status = document.getElementById("status")
 
@@ -139,36 +185,38 @@ window.SpeechRecognition || window.webkitSpeechRecognition
 
 if(!SpeechRecognition){
 
-status.innerText="Voice not supported in browser"
+status.innerText = "Voice not supported in this browser"
 return
 
 }
 
 const recognition = new SpeechRecognition()
 
-recognition.lang="en-US"
+recognition.lang = "en-US"
 
 recognition.start()
 
-status.innerText="Listening..."
+status.innerText = "Listening..."
 
 recognition.onresult = e => {
 
 const text = e.results[0][0].transcript
 
-status.innerText="Searching: " + text
+status.innerText = "Searching: " + text
 
 localStorage.setItem("query",text)
 
 setTimeout(()=>{
+
 window.location.href="results.html"
+
 },700)
 
 }
 
 recognition.onerror = () => {
 
-status.innerText="Voice error, try again"
+status.innerText = "Voice error. Try again."
 
 }
 
