@@ -21,19 +21,17 @@
 <div id="root"></div>
 
 <script type="text/babel">
+  
+const [items,setItems] = React.useState([])
 
-const products=[
+React.useEffect(()=>{
 
-{id:1,name:"Gaming Mouse",price:1200},
-{id:2,name:"Mechanical Keyboard",price:2500},
-{id:3,name:"Wireless Headphones",price:1800},
-{id:4,name:"Laptop Stand",price:900},
-{id:5,name:"USB Hub",price:700},
-{id:6,name:"Smart Watch",price:3200},
-{id:7,name:"LED Monitor",price:8000},
-{id:8,name:"Gaming Chair",price:5000}
+fetch("/api/products")
+.then(res=>res.json())
+.then(data=>setItems(data))
 
-]
+},[])
+
 
 function App(){
 
