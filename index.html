@@ -5,35 +5,183 @@
 
 <title>Agentic Wallet</title>
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+
+/* PAGE */
+
+body{
+font-family: system-ui;
+}
+
+/* MIC CONTAINER */
+
+.mic-container{
+position:relative;
+display:flex;
+justify-content:center;
+align-items:center;
+margin-top:40px;
+}
+
+/* MIC BUTTON */
+
+.mic-btn{
+
+width:130px;
+height:130px;
+
+border-radius:50%;
+
+background:#2563eb;
+
+color:white;
+
+font-size:42px;
+
+border:none;
+
+cursor:pointer;
+
+z-index:2;
+
+box-shadow:0 15px 40px rgba(0,0,0,0.25);
+
+transition:transform 0.2s;
+
+}
+
+.mic-btn:hover{
+transform:scale(1.05);
+}
+
+/* PULSE RINGS */
+
+.pulse-ring{
+
+position:absolute;
+
+width:180px;
+height:180px;
+
+border-radius:50%;
+
+background:rgba(37,99,235,0.35);
+
+animation:pulse 2s infinite;
+
+}
+
+.pulse-ring:nth-child(1){
+animation-delay:0s;
+}
+
+.pulse-ring:nth-child(2){
+animation-delay:0.7s;
+}
+
+.pulse-ring:nth-child(3){
+animation-delay:1.4s;
+}
+
+/* ANIMATION */
+
+@keyframes pulse{
+
+0%{
+transform:scale(0.8);
+opacity:0.7;
+}
+
+70%{
+transform:scale(1.4);
+opacity:0;
+}
+
+100%{
+opacity:0;
+}
+
+}
+
+/* STATUS TEXT */
+
+.status-text{
+
+margin-top:25px;
+font-size:18px;
+color:#555;
+
+}
+
+/* FOOTER LINKS */
+
+.links{
+
+margin-top:50px;
+font-size:16px;
+
+}
+
+.links a{
+
+color:#2563eb;
+margin:0 10px;
+
+}
+
+</style>
+
+<script>
+
+/* LOGIN CHECK */
+
+if(!localStorage.getItem("token")){
+
+window.location.href="login.html"
+
+}
+
+</script>
 
 </head>
 
 <body class="bg-gradient-to-b from-gray-100 to-gray-200 h-screen flex items-center justify-center">
 
-<div class="text-center">
+<div class="text-center max-w-lg">
 
-<h1 class="text-5xl font-bold mb-6">
+<h1 class="text-5xl font-bold mb-4">
 Agentic Wallet
 </h1>
 
-<p class="text-gray-500 mb-10">
-Tap and speak what you want
+<p class="text-gray-500 text-lg">
+Voice Powered Shopping
 </p>
 
-<button id="mic"
-class="bg-blue-600 hover:bg-blue-700 text-white text-4xl w-32 h-32 rounded-full shadow-lg">
+<div class="mic-container">
+
+<div class="pulse-ring"></div>
+<div class="pulse-ring"></div>
+<div class="pulse-ring"></div>
+
+<button id="mic" class="mic-btn">
 🎤
 </button>
 
-<p id="status" class="mt-6 text-gray-600">
-Tap microphone
+</div>
+
+<p id="status" class="status-text">
+Tap microphone and say something like "gaming mouse"
 </p>
 
-<div class="mt-10">
+<div class="links">
 
-<a href="login.html" class="text-blue-500 mr-4">Login</a>
-<a href="signup.html" class="text-blue-500">Signup</a>
+<a href="login.html">Login</a>
+<a href="signup.html">Signup</a>
+<a href="cart.html">Cart</a>
 
 </div>
 
@@ -43,26 +191,46 @@ Tap microphone
 
 const status = document.getElementById("status")
 
-document.getElementById("mic").onclick = () => {
+const mic = document.getElementById("mic")
+
+mic.onclick = () => {
 
 const SpeechRecognition =
 window.SpeechRecognition || window.webkitSpeechRecognition
 
+if(!SpeechRecognition){
+
+status.innerText = "Voice recognition not supported"
+
+return
+
+}
+
 const recognition = new SpeechRecognition()
+
+recognition.lang = "en-US"
 
 recognition.start()
 
-status.innerText = "Listening..."
+status.innerText = "🎤 Listening..."
 
 recognition.onresult = e => {
 
 const text = e.results[0][0].transcript
 
-status.innerText = "Searching: " + text
+status.innerText = "Searching for: " + text
 
 localStorage.setItem("query",text)
 
-window.location.href = "results.html"
+setTimeout(()=>{
+window.location.href="results.html"
+},800)
+
+}
+
+recognition.onerror = () => {
+
+status.innerText = "Voice error. Try again."
 
 }
 
