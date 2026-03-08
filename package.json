@@ -1,8 +1,20 @@
 {
-  "name": "agentic-wallet-demo",
+  "name": "agentic-wallet",
   "version": "1.0.0",
   "private": true,
+
   "dependencies": {
-    "razorpay": "^2.9.2"
+
+    "razorpay": "^2.9.2",
+
+    "mongodb": "^6.3.0",
+
+    "bcryptjs": "^2.4.3",
+
+    "jsonwebtoken": "^9.0.2",
+
+    "node-fetch": "^3.3.2"
+
   }
+
 }
