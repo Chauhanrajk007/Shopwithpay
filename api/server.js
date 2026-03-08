@@ -53,7 +53,7 @@ const user = await db.collection("users").findOne({email})
 
 if(!user){
 
-return res.status(400).json({error:"user not found"})
+return res.json({error:"User not found"})
 
 }
 
@@ -61,22 +61,21 @@ const valid = await bcrypt.compare(password,user.password)
 
 if(!valid){
 
-return res.status(400).json({error:"wrong password"})
+return res.json({error:"Wrong password"})
 
 }
 
 const token = jwt.sign(
-
 {userId:user._id},
-
 process.env.JWT_SECRET
-
 )
 
-return res.json({token})
+return res.json({
+token,
+name:user.name
+})
 
 }
-
 /* ADD CART */
 
 if(action === "addCart"){
