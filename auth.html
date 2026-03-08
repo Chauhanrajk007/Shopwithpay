@@ -102,26 +102,16 @@ return
 
 }
 
-if(mode === "login"){
+/* AUTO LOGIN */
 
 localStorage.setItem("token",data.token)
 localStorage.setItem("name",data.name)
 
-message.innerText = "Login successful ✔"
+message.innerText = "Welcome " + data.name
 
 setTimeout(()=>{
-
 window.location.href="index.html"
-
-},800)
-
-}else{
-
-message.innerText = "Account created ✔ Please login"
-
-toggleMode()
-
-}
+},700)
 
 }
 
