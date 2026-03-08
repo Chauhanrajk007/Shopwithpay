@@ -1,15 +1,28 @@
-import { MongoClient } from "mongodb"
+import { MongoClient } from "mongodb";
 
-const client = new MongoClient(process.env.MONGODB_URI)
+let client;
 
-export default async function handler(req,res){
+export default async function handler(req, res) {
 
-await client.connect()
+try {
 
-const db = client.db("agenticwallet")
+if (!client) {
+client = new MongoClient(process.env.MONGODB_URI);
+await client.connect();
+}
 
-const products = await db.collection("products").find({}).toArray()
+const db = client.db("agenticwallet");
 
-res.status(200).json(products)
+const products = await db.collection("products").find({}).toArray();
+
+res.status(200).json(products);
+
+} catch (error) {
+
+console.error("MongoDB error:", error);
+
+res.status(500).json({ error: "Database connection failed" });
+
+}
 
 }
