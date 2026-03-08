@@ -10,7 +10,7 @@ await client.connect()
 
 const db = client.db("ragDB")
 
-const products = await db.collection("documents").find({}).toArray()
+const products = await db.collection("products").find({}).toArray()
 
 const filtered = products.filter(p =>
 
