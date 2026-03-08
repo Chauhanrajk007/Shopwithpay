@@ -69,9 +69,6 @@ mode === "login" ? "Login" : "Signup"
 document.getElementById("toggleText").innerText =
 mode === "login" ? "New user?" : "Already have account?"
 
-document.querySelector("#toggleText + a").innerText =
-mode === "login" ? "Create account" : "Login"
-
 document.getElementById("name").classList.toggle("hidden")
 
 }
@@ -104,8 +101,6 @@ message.innerText = data.error
 return
 
 }
-
-/* AUTO LOGIN */
 
 localStorage.setItem("token",data.token)
 localStorage.setItem("name",data.name)
