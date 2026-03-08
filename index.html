@@ -7,17 +7,17 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<script src="https://cdn.tailwindcss.com"></script>
-
 <link rel="icon" href="data:,">
+
+<script src="https://cdn.tailwindcss.com"></script>
 
 <style>
 
 body{
-font-family: system-ui;
+font-family:system-ui;
 }
 
-/* mic button */
+/* mic container */
 
 .mic-container{
 display:flex;
@@ -25,6 +25,8 @@ justify-content:center;
 align-items:center;
 margin-top:80px;
 }
+
+/* mic button */
 
 .mic{
 
@@ -92,16 +94,6 @@ opacity:0;
 
 </style>
 
-<script>
-
-/* login check */
-
-if(!localStorage.getItem("token")){
-window.location.href="auth.html"
-}
-
-</script>
-
 </head>
 
 <body class="bg-gray-100">
@@ -135,7 +127,9 @@ Voice Shopping
 </h1>
 
 <p class="text-gray-500 mb-10">
-Tap the mic and say what you want to buy
+Tap the mic and say something like
+<br>
+<b>"gaming mouse"</b>
 </p>
 
 <div class="mic-container relative">
@@ -156,10 +150,18 @@ Tap microphone
 
 <script>
 
-/* show username */
+/* login check */
+
+window.onload = function(){
+
+if(!localStorage.getItem("token")){
+window.location.href="auth.html"
+}
 
 document.getElementById("username").innerText =
-"Hi " + localStorage.getItem("name")
+"Hi " + (localStorage.getItem("name") || "User")
+
+}
 
 /* logout */
 
@@ -174,16 +176,19 @@ window.location.href="auth.html"
 
 /* voice recognition */
 
+const mic = document.getElementById("mic")
 const status = document.getElementById("status")
 
-document.getElementById("mic").onclick = () => {
+mic.addEventListener("click", startVoice)
+
+function startVoice(){
 
 const SpeechRecognition =
 window.SpeechRecognition || window.webkitSpeechRecognition
 
 if(!SpeechRecognition){
 
-status.innerText = "Voice not supported in this browser"
+status.innerText = "Voice recognition not supported in this browser"
 return
 
 }
@@ -191,30 +196,42 @@ return
 const recognition = new SpeechRecognition()
 
 recognition.lang = "en-US"
-
-recognition.start()
+recognition.interimResults = false
+recognition.maxAlternatives = 1
 
 status.innerText = "Listening..."
 
-recognition.onresult = e => {
+mic.style.background = "red"
 
-const text = e.results[0][0].transcript
+recognition.start()
+
+recognition.onresult = function(event){
+
+const text = event.results[0][0].transcript
 
 status.innerText = "Searching: " + text
 
-localStorage.setItem("query",text)
+localStorage.setItem("query", text)
 
 setTimeout(()=>{
 
-window.location.href="results.html"
+window.location.href = "results.html"
 
 },700)
 
 }
 
-recognition.onerror = () => {
+recognition.onerror = function(event){
 
-status.innerText = "Voice error. Try again."
+status.innerText = "Error: " + event.error
+
+mic.style.background = "#2563eb"
+
+}
+
+recognition.onend = function(){
+
+mic.style.background = "#2563eb"
 
 }
 
