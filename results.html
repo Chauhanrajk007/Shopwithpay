@@ -8,14 +8,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://cdn.tailwindcss.com"></script>
-
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 </head>
 
 <body class="bg-gray-100">
-
-<!-- NAVBAR -->
 
 <nav class="bg-white shadow p-4 flex justify-between">
 
@@ -23,17 +20,11 @@
 Agentic Wallet
 </div>
 
-<div>
-
 <a href="index.html" class="text-blue-500">
 Voice Search
 </a>
 
-</div>
-
 </nav>
-
-<!-- RESULTS -->
 
 <div class="p-10">
 
@@ -49,33 +40,25 @@ Search Results
 
 <script>
 
-/* read voice query */
-
-const query = localStorage.getItem("query") || ""
+const query = (localStorage.getItem("query") || "").toLowerCase()
 
 document.getElementById("queryText").innerText =
 "Showing results for: " + query
 
 async function loadProducts(){
 
-const res = await fetch("/api/ai-search",{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify({query})
-
-})
+const res = await fetch("/api/server?action=products")
 
 const data = await res.json()
 
-/* filter products */
+/* semantic filtering */
 
 const filtered = data.filter(p =>
-p.name.toLowerCase().includes(query.toLowerCase())
+
+(p.name + " " + (p.description || ""))
+.toLowerCase()
+.includes(query)
+
 )
 
 const container = document.getElementById("products")
@@ -117,8 +100,6 @@ Buy Now
 
 }
 
-/* Razorpay payment */
-
 async function buy(price){
 
 const res = await fetch("/api/create-order",{
@@ -138,17 +119,12 @@ const data = await res.json()
 const options = {
 
 key:data.key,
-
 amount:data.order.amount,
-
 currency:"INR",
-
 order_id:data.order.id,
 
 handler:function(){
-
 alert("Payment Successful")
-
 }
 
 }
