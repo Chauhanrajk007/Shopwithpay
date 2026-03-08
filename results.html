@@ -3,15 +3,19 @@
 
 <head>
 
-<title>Results</title>
+<title>Search Results</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://cdn.tailwindcss.com"></script>
 
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
 </head>
 
 <body class="bg-gray-100">
+
+<!-- NAVBAR -->
 
 <nav class="bg-white shadow p-4 flex justify-between">
 
@@ -21,59 +25,79 @@ Agentic Wallet
 
 <div>
 
-
-<a href="index.html" class="text-blue-500">Voice</a>
+<a href="index.html" class="text-blue-500">
+Voice Search
+</a>
 
 </div>
 
 </nav>
 
+<!-- RESULTS -->
+
 <div class="p-10">
 
-<h1 class="text-3xl font-bold mb-6">
+<h1 class="text-3xl font-bold mb-2">
 Search Results
 </h1>
 
-<div id="products" class="grid grid-cols-3 gap-6"></div>
+<p id="queryText" class="text-gray-500 mb-8"></p>
+
+<div id="products" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
 
 </div>
 
 <script>
 
-const query = localStorage.getItem("query")
+/* read voice query */
 
-async function load(){
+const query = localStorage.getItem("query") || ""
+
+document.getElementById("queryText").innerText =
+"Showing results for: " + query
+
+async function loadProducts(){
 
 const res = await fetch("/api/server?action=products")
 
 const data = await res.json()
 
+/* filter products */
+
+const filtered = data.filter(p =>
+p.name.toLowerCase().includes(query.toLowerCase())
+)
+
 const container = document.getElementById("products")
 
-data.forEach(p => {
+if(filtered.length === 0){
+
+container.innerHTML =
+"<p class='text-gray-500'>No products found</p>"
+
+return
+
+}
+
+filtered.forEach(p => {
 
 container.innerHTML += `
 
 <div class="bg-white p-6 rounded shadow">
 
-<h2 class="text-lg font-semibold">
+<h2 class="text-lg font-semibold mb-2">
 ${p.name}
 </h2>
 
-<p class="text-gray-500">
+<p class="text-gray-600 mb-4">
 ₹${p.price}
 </p>
 
-<div class="flex gap-3 mt-4">
-
-
-
-<button onclick="buy(${p.price})"
-class="bg-green-500 text-white px-3 py-2 rounded">
+<button
+onclick="buy(${p.price})"
+class="bg-green-500 text-white px-4 py-2 rounded">
 Buy Now
 </button>
-
-</div>
 
 </div>
 
@@ -83,26 +107,7 @@ Buy Now
 
 }
 
-async function addCart(id){
-
-const token = localStorage.getItem("token")
-
-await fetch("/api/server?action=addCart",{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json",
-Authorization:token
-},
-
-body:JSON.stringify({productId:id})
-
-})
-
-alert("Added to cart")
-
-}
+/* Razorpay payment */
 
 async function buy(price){
 
@@ -120,15 +125,20 @@ body:JSON.stringify({amount:price})
 
 const data = await res.json()
 
-const options={
+const options = {
 
 key:data.key,
+
 amount:data.order.amount,
+
 currency:"INR",
+
 order_id:data.order.id,
 
 handler:function(){
+
 alert("Payment Successful")
+
 }
 
 }
@@ -139,11 +149,9 @@ rzp.open()
 
 }
 
-load()
+loadProducts()
 
 </script>
-
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 </body>
 </html>
