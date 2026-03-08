@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Results</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+<body class="bg-gray-100 p-10">
+
+<h1 class="text-3xl font-bold mb-6">
+Search Results
+</h1>
+
+<div id="products" class="grid grid-cols-3 gap-6"></div>
+
+<script>
+
+const query = localStorage.getItem("query")
+
+async function load(){
+
+const res = await fetch("/api/server?action=products")
+
+const data = await res.json()
+
+const filtered = data.filter(p =>
+p.name.toLowerCase().includes(query.toLowerCase())
+)
+
+const container = document.getElementById("products")
+
+filtered.forEach(p => {
+
+container.innerHTML += `
+
+<div class="bg-white p-6 rounded shadow">
+
+<h2 class="text-lg font-semibold">${p.name}</h2>
+
+<p class="text-gray-500">₹${p.price}</p>
+
+<button onclick="addCart('${p._id}')"
+class="mt-3 bg-yellow-400 px-3 py-2 rounded">
+Add to Cart
+</button>
+
+</div>
+
+`
+
+})
+
+}
+
+async function addCart(id){
+
+const token = localStorage.getItem("token")
+
+await fetch("/api/server?action=addCart",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json",
+Authorization:token
+},
+
+body:JSON.stringify({productId:id})
+
+})
+
+alert("Added to cart")
+
+}
+
+load()
+
+</script>
+
+</body>
+</html>
