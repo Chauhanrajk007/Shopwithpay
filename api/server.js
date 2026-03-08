@@ -98,7 +98,7 @@ name:user.name
 
 if(action === "products"){
 
-const products = await db.collection("documents").find({}).toArray()
+const products = await db.collection("products").find({}).toArray()
 
 return res.json(products)
 
