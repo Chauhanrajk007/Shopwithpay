@@ -11,7 +11,7 @@ client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
 }
 
-const db = client.db("agenticwallet");
+const db = client.db("ragDB");
 
 const products = await db.collection("products").find({}).toArray();
 
