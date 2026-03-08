@@ -30,9 +30,17 @@ if(action === "signup"){
 
 const {name,email,password} = req.body
 
+const existing = await db.collection("users").findOne({email})
+
+if(existing){
+
+return res.json({error:"User already exists"})
+
+}
+
 const hash = await bcrypt.hash(password,10)
 
-await db.collection("users").insertOne({
+const user = await db.collection("users").insertOne({
 
 name,
 email,
@@ -40,11 +48,20 @@ password:hash
 
 })
 
-return res.json({message:"user created"})
+const token = jwt.sign(
+{userId:user.insertedId},
+process.env.JWT_SECRET
+)
+
+return res.json({
+token,
+name
+})
 
 }
 
-  
+/* LOGIN */
+
 if(action === "login"){
 
 const {email,password} = req.body
@@ -76,6 +93,17 @@ name:user.name
 })
 
 }
+
+/* PRODUCTS */
+
+if(action === "products"){
+
+const products = await db.collection("documents").find({}).toArray()
+
+return res.json(products)
+
+}
+
 /* ADD CART */
 
 if(action === "addCart"){
@@ -93,7 +121,7 @@ productId
 
 })
 
-return res.json({message:"added to cart"})
+return res.json({message:"Added to cart"})
 
 }
 
@@ -112,16 +140,6 @@ userId:decoded.userId
 }).toArray()
 
 return res.json(cart)
-
-}
-
-/* PRODUCTS */
-
-if(action === "products"){
-
-const products = await db.collection("documents").find({}).toArray()
-
-return res.json(products)
 
 }
 
