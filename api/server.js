@@ -28,12 +28,13 @@ const action = req.query.action
 
 if(action === "signup"){
 
-const {email,password} = req.body
+const {name,email,password} = req.body
 
 const hash = await bcrypt.hash(password,10)
 
 await db.collection("users").insertOne({
 
+name,
 email,
 password:hash
 
@@ -43,8 +44,7 @@ return res.json({message:"user created"})
 
 }
 
-/* LOGIN */
-
+  
 if(action === "login"){
 
 const {email,password} = req.body
