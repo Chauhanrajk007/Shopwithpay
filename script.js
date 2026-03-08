@@ -8,7 +8,7 @@ const order = await response.json();
 
 const options = {
 
-key: "YOUR_TEST_KEY_ID",
+key: "rzp_test_SOG6lOGhODRvFA",
 
 amount: order.amount,
 
