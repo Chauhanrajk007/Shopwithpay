@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <title>Agentic Wallet</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://cdn.tailwindcss.com"></script>
@@ -17,14 +19,20 @@
 Agentic Wallet
 </h1>
 
-<div id="form-title" class="text-xl mb-4 text-center">
+<div id="title" class="text-xl mb-4 text-center">
 Login
 </div>
 
-<input id="email" placeholder="Email"
+<input id="name"
+placeholder="Name"
+class="border p-3 w-full mb-3 rounded hidden"/>
+
+<input id="email"
+placeholder="Email"
 class="border p-3 w-full mb-3 rounded"/>
 
-<input id="password" type="password"
+<input id="password"
+type="password"
 placeholder="Password"
 class="border p-3 w-full mb-4 rounded"/>
 
@@ -33,11 +41,16 @@ class="bg-blue-500 text-white w-full p-3 rounded">
 Continue
 </button>
 
-<p class="text-center mt-4 text-gray-600">
-<span id="toggle-text">New user?</span>
+<p id="message" class="text-center mt-4 text-gray-600"></p>
+
+<p class="text-center mt-4">
+
+<span id="toggleText">New user?</span>
+
 <a onclick="toggleMode()" class="text-blue-500 cursor-pointer">
 Create account
 </a>
+
 </p>
 
 </div>
@@ -50,16 +63,19 @@ function toggleMode(){
 
 mode = mode === "login" ? "signup" : "login"
 
-document.getElementById("form-title").innerText =
+document.getElementById("title").innerText =
 mode === "login" ? "Login" : "Signup"
 
-document.getElementById("toggle-text").innerText =
+document.getElementById("toggleText").innerText =
 mode === "login" ? "New user?" : "Already have account?"
+
+document.getElementById("name").classList.toggle("hidden")
 
 }
 
 async function submitForm(){
 
+const name = document.getElementById("name").value
 const email = document.getElementById("email").value
 const password = document.getElementById("password").value
 
@@ -71,21 +87,37 @@ headers:{
 "Content-Type":"application/json"
 },
 
-body:JSON.stringify({email,password})
+body:JSON.stringify({name,email,password})
 
 })
 
 const data = await res.json()
 
+const message = document.getElementById("message")
+
+if(data.error){
+
+message.innerText = data.error
+return
+
+}
+
 if(mode === "login"){
 
 localStorage.setItem("token",data.token)
+localStorage.setItem("name",data.name)
+
+message.innerText = "Login successful ✔"
+
+setTimeout(()=>{
 
 window.location.href="index.html"
 
+},800)
+
 }else{
 
-alert("Account created. Please login.")
+message.innerText = "Account created ✔ Please login"
 
 toggleMode()
 
