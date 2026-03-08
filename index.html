@@ -7,196 +7,66 @@
 
 <script src="https://cdn.tailwindcss.com"></script>
 
-<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-
 </head>
 
-<body class="bg-gray-100">
+<body class="bg-gradient-to-b from-gray-100 to-gray-200 h-screen flex items-center justify-center">
 
-<div id="root"></div>
+<div class="text-center">
 
-<script type="text/babel">
+<h1 class="text-5xl font-bold mb-6">
+Agentic Wallet
+</h1>
 
-function App(){
+<p class="text-gray-500 mb-10">
+Tap and speak what you want
+</p>
 
-const [query,setQuery] = React.useState("")
-const [products,setProducts] = React.useState([])
-const [message,setMessage] = React.useState("Tap the microphone and speak")
+<button id="mic"
+class="bg-blue-600 hover:bg-blue-700 text-white text-4xl w-32 h-32 rounded-full shadow-lg">
+🎤
+</button>
 
-async function searchProducts(text){
+<p id="status" class="mt-6 text-gray-600">
+Tap microphone
+</p>
 
-setMessage("Searching for: " + text)
+<div class="mt-10">
 
-try{
+<a href="login.html" class="text-blue-500 mr-4">Login</a>
+<a href="signup.html" class="text-blue-500">Signup</a>
 
-const res = await fetch("/api/products")
+</div>
 
-const data = await res.json()
+</div>
 
-const filtered = data.filter(p =>
-p.name.toLowerCase().includes(text.toLowerCase())
-)
+<script>
 
-if(filtered.length === 0){
-setMessage("No products found")
-}else{
-setMessage("Results for: " + text)
-}
+const status = document.getElementById("status")
 
-setProducts(filtered)
-
-}catch(err){
-
-setMessage("Error loading products")
-
-}
-
-}
-
-function startVoice(){
+document.getElementById("mic").onclick = () => {
 
 const SpeechRecognition =
 window.SpeechRecognition || window.webkitSpeechRecognition
 
-if(!SpeechRecognition){
-
-setMessage("Voice recognition not supported in this browser")
-
-return
-}
-
 const recognition = new SpeechRecognition()
-
-recognition.lang = "en-US"
 
 recognition.start()
 
-setMessage("Listening...")
+status.innerText = "Listening..."
 
-recognition.onresult = function(event){
+recognition.onresult = e => {
 
-const text = event.results[0][0].transcript
+const text = e.results[0][0].transcript
 
-setQuery(text)
+status.innerText = "Searching: " + text
 
-searchProducts(text)
+localStorage.setItem("query",text)
 
-}
-
-recognition.onerror = function(){
-
-setMessage("Voice recognition error")
+window.location.href = "results.html"
 
 }
 
 }
-
-async function buy(price){
-
-const res = await fetch("/api/create-order",{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify({amount:price})
-
-})
-
-const data = await res.json()
-
-const options={
-
-key:data.key,
-amount:data.order.amount,
-currency:"INR",
-order_id:data.order.id,
-
-handler:function(){
-
-alert("Payment Successful")
-
-}
-
-}
-
-const rzp = new Razorpay(options)
-
-rzp.open()
-
-}
-
-return(
-
-<div className="min-h-screen flex flex-col items-center justify-center p-6">
-
-<h1 className="text-5xl font-bold mb-6">
-Agentic Wallet
-</h1>
-
-<p className="text-gray-500 mb-8">
-Voice Powered Shopping
-</p>
-
-<button
-onClick={startVoice}
-className="bg-blue-600 text-white text-3xl w-24 h-24 rounded-full shadow-lg hover:bg-blue-700"
->
-🎤
-</button>
-
-<p className="mt-6 text-lg text-gray-600">
-{message}
-</p>
-
-{products.length > 0 && (
-
-<div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
-
-{products.map(p => (
-
-<div
-key={p._id}
-className="bg-white p-6 rounded-xl shadow"
->
-
-<h2 className="text-lg font-semibold">
-{p.name}
-</h2>
-
-<p className="text-gray-500">
-₹{p.price}
-</p>
-
-<button
-onClick={()=>buy(p.price)}
-className="mt-4 bg-green-500 text-white px-4 py-2 rounded"
->
-Buy Now
-</button>
-
-</div>
-
-))}
-
-</div>
-
-)}
-
-</div>
-
-)
-
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>)
 
 </script>
 
