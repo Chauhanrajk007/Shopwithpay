@@ -37,3 +37,54 @@ Buy Now
 `;
 
 });
+async function pay(price){
+
+const response = await fetch("/api/create-order",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body: JSON.stringify({ amount: price })
+});
+
+const data = await response.json();
+
+const options = {
+
+key:data.key,
+
+amount:data.order.amount,
+
+currency:"INR",
+
+name:"Agentic Wallet",
+
+description:"Product Purchase",
+
+order_id:data.order.id,
+
+prefill:{
+name:"Test User",
+email:"test@test.com",
+contact:"9999999999"
+},
+
+method:{
+upi:true,
+card:true,
+netbanking:true
+},
+
+handler:function(response){
+
+alert("Payment Successful");
+
+console.log(response);
+
+}
+
+};
+
+const rzp=new Razorpay(options);
+
+rzp.open();
+
+}
