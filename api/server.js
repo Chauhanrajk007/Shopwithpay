@@ -104,43 +104,7 @@ return res.json(products)
 
 }
 
-/* ADD CART */
 
-if(action === "addCart"){
 
-const token = req.headers.authorization
-
-const decoded = jwt.verify(token,process.env.JWT_SECRET)
-
-const {productId} = req.body
-
-await db.collection("cart").insertOne({
-
-userId:decoded.userId,
-productId
-
-})
-
-return res.json({message:"Added to cart"})
-
-}
-
-/* GET CART */
-
-if(action === "getCart"){
-
-const token = req.headers.authorization
-
-const decoded = jwt.verify(token,process.env.JWT_SECRET)
-
-const cart = await db.collection("cart").find({
-
-userId:decoded.userId
-
-}).toArray()
-
-return res.json(cart)
-
-}
 
 }
