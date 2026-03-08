@@ -7,17 +7,11 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<link rel="icon" href="data:,">
-
 <script src="https://cdn.tailwindcss.com"></script>
 
+<link rel="icon" href="data:,">
+
 <style>
-
-body{
-font-family:system-ui;
-}
-
-/* mic container */
 
 .mic-container{
 display:flex;
@@ -26,12 +20,10 @@ align-items:center;
 margin-top:80px;
 }
 
-/* mic button */
-
 .mic{
 
-width:150px;
-height:150px;
+width:140px;
+height:140px;
 
 border-radius:50%;
 
@@ -39,7 +31,7 @@ background:#2563eb;
 
 color:white;
 
-font-size:55px;
+font-size:50px;
 
 display:flex;
 align-items:center;
@@ -47,52 +39,24 @@ justify-content:center;
 
 cursor:pointer;
 
-box-shadow:0 20px 50px rgba(0,0,0,0.25);
-
-transition:0.2s;
+box-shadow:0 20px 40px rgba(0,0,0,0.2);
 
 }
 
 .mic:hover{
 transform:scale(1.05);
-}
-
-/* pulse animation */
-
-.pulse{
-
-position:absolute;
-
-width:200px;
-height:200px;
-
-border-radius:50%;
-
-background:rgba(37,99,235,0.3);
-
-animation:pulse 2s infinite;
-
-}
-
-@keyframes pulse{
-
-0%{
-transform:scale(0.8);
-opacity:0.7;
-}
-
-70%{
-transform:scale(1.3);
-opacity:0;
-}
-
-100%{
-opacity:0;
-}
-
+transition:0.2s;
 }
 
 </style>
+
+<script>
+
+if(!localStorage.getItem("token")){
+window.location.href="auth.html"
+}
+
+</script>
 
 </head>
 
@@ -118,7 +82,7 @@ Logout
 
 </nav>
 
-<!-- MAIN -->
+<!-- VOICE SEARCH -->
 
 <div class="flex flex-col items-center justify-center text-center h-[80vh]">
 
@@ -127,14 +91,10 @@ Voice Shopping
 </h1>
 
 <p class="text-gray-500 mb-10">
-Tap the mic and say something like
-<br>
-<b>"gaming mouse"</b>
+Tap the mic and say what you want
 </p>
 
-<div class="mic-container relative">
-
-<div class="pulse"></div>
+<div class="mic-container">
 
 <div id="mic" class="mic">
 🎤
@@ -150,20 +110,12 @@ Tap microphone
 
 <script>
 
-/* login check */
-
-window.onload = function(){
-
-if(!localStorage.getItem("token")){
-window.location.href="auth.html"
-}
+/* Show username */
 
 document.getElementById("username").innerText =
 "Hi " + (localStorage.getItem("name") || "User")
 
-}
-
-/* logout */
+/* Logout */
 
 function logout(){
 
@@ -174,64 +126,47 @@ window.location.href="auth.html"
 
 }
 
-/* voice recognition */
+/* Voice recognition */
 
-const mic = document.getElementById("mic")
 const status = document.getElementById("status")
 
-mic.addEventListener("click", startVoice)
-
-function startVoice(){
+document.getElementById("mic").onclick = () => {
 
 const SpeechRecognition =
 window.SpeechRecognition || window.webkitSpeechRecognition
 
 if(!SpeechRecognition){
 
-status.innerText = "Voice recognition not supported in this browser"
+status.innerText="Voice not supported in browser"
 return
 
 }
 
 const recognition = new SpeechRecognition()
 
-recognition.lang = "en-US"
-recognition.interimResults = false
-recognition.maxAlternatives = 1
-
-status.innerText = "Listening..."
-
-mic.style.background = "red"
+recognition.lang="en-US"
 
 recognition.start()
 
-recognition.onresult = function(event){
+status.innerText="Listening..."
 
-const text = event.results[0][0].transcript
+recognition.onresult = e => {
 
-status.innerText = "Searching: " + text
+const text = e.results[0][0].transcript
 
-localStorage.setItem("query", text)
+status.innerText="Searching: " + text
+
+localStorage.setItem("query",text)
 
 setTimeout(()=>{
-
-window.location.href = "results.html"
-
+window.location.href="results.html"
 },700)
 
 }
 
-recognition.onerror = function(event){
+recognition.onerror = () => {
 
-status.innerText = "Error: " + event.error
-
-mic.style.background = "#2563eb"
-
-}
-
-recognition.onend = function(){
-
-mic.style.background = "#2563eb"
+status.innerText="Voice error, try again"
 
 }
 
