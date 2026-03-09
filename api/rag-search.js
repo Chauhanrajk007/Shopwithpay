@@ -16,8 +16,7 @@ if(!query){
 return res.status(400).json({error:"Query missing"})
 }
 
-
-/* STEP 1 — Create embedding */
+/* STEP 1 — create embedding */
 
 const embedResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
@@ -25,23 +24,30 @@ const embedResponse = await fetch(
 method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
-content:{ parts:[{ text: query }] }
+content:{
+parts:[{ text: query }]
+}
 })
 }
 )
 
 const embedData = await embedResponse.json()
 
+if(!embedData.embedding){
+return res.status(500).json({error:"Embedding failed"})
+}
+
 const queryVector = embedData.embedding.values
 
-
-/* STEP 2 — Vector retrieval */
+/* STEP 2 — connect MongoDB */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
 await client.connect()
 
 const db = client.db("ragDB")
+
+/* STEP 3 — vector search */
 
 const candidates = await db.collection("products").aggregate([
 {
@@ -55,8 +61,7 @@ limit:15
 }
 ]).toArray()
 
-
-/* STEP 3 — Ask Gemini to filter results */
+/* STEP 4 — Gemini filters products */
 
 const geminiResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -64,8 +69,10 @@ const geminiResponse = await fetch(
 method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
-contents:[{
-parts:[{
+contents:[
+{
+parts:[
+{
 text:`User search query: "${query}"
 
 Products:
@@ -78,8 +85,10 @@ If query = gaming mouse under 2000
 Remove items above 2000 or unrelated categories.
 
 Return JSON array of products only.`
-}]
-}]
+}
+]
+}
+]
 })
 }
 )
@@ -99,16 +108,13 @@ finalProducts = JSON.parse(text)
 finalProducts = candidates.slice(0,5)
 }
 
-
-/* STEP 4 — Return results */
+/* STEP 5 — return results */
 
 if(finalProducts.length === 0){
-
 return res.json({
 message:`No results found for "${query}"`,
 products:[]
 })
-
 }
 
 res.json({
