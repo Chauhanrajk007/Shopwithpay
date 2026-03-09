@@ -4,6 +4,8 @@ export default async function handler(req,res){
 
 try{
 
+/* ---------- READ REQUEST ---------- */
+
 let body = req.body
 
 if(typeof body === "string"){
@@ -17,7 +19,7 @@ return res.status(400).json({error:"Query missing"})
 }
 
 
-/* STEP 1 — Gemini query understanding */
+/* ---------- STEP 1 : GEMINI QUERY UNDERSTANDING ---------- */
 
 const intentResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -28,18 +30,27 @@ body:JSON.stringify({
 contents:[{
 parts:[{
 text:`
-You are an AI search query parser.
+You are an AI shopping search parser.
 
-Extract structured product search intent.
+Extract structured search intent.
 
 User query:
 "${query}"
 
-Return ONLY JSON:
+Return JSON ONLY:
 
 {
-"product":"string",
+"product":"main product type",
 "max_price":number or null
+}
+
+Example:
+
+gaming headphones under 2000
+→
+{
+"product":"gaming headphones",
+"max_price":2000
 }
 `
 }]
@@ -60,14 +71,14 @@ let intent = {}
 try{
 intent = JSON.parse(intentText)
 }catch{
-intent = {product:query,max_price:null}
+intent = { product: query, max_price: null }
 }
 
-const searchPhrase = intent.product || query
+const productSearch = intent.product || query
 const maxPrice = intent.max_price || null
 
 
-/* STEP 2 — Create embedding */
+/* ---------- STEP 2 : CREATE EMBEDDING ---------- */
 
 const embedResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
@@ -76,7 +87,7 @@ method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
 content:{
-parts:[{text:searchPhrase}]
+parts:[{ text: productSearch }]
 }
 })
 }
@@ -91,7 +102,7 @@ return res.status(500).json({error:"Embedding failed"})
 const queryVector = embedData.embedding.values
 
 
-/* STEP 3 — MongoDB connection */
+/* ---------- STEP 3 : CONNECT DATABASE ---------- */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -100,7 +111,7 @@ await client.connect()
 const db = client.db("ragDB")
 
 
-/* STEP 4 — Vector search */
+/* ---------- STEP 4 : VECTOR SEARCH ---------- */
 
 let candidates = await db.collection("products").aggregate([
 {
@@ -109,20 +120,31 @@ index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
 numCandidates:300,
-limit:30
+limit:40
 }
 }
 ]).toArray()
 
 
-/* STEP 5 — Price filtering */
+/* ---------- STEP 5 : KEYWORD FILTER ---------- */
+
+const keyword = productSearch.toLowerCase()
+
+candidates = candidates.filter(p =>
+(p.name + " " + p.description)
+.toLowerCase()
+.includes(keyword)
+)
+
+
+/* ---------- STEP 6 : PRICE FILTER ---------- */
 
 if(maxPrice){
 candidates = candidates.filter(p => p.price <= maxPrice)
 }
 
 
-/* STEP 6 — Gemini reranking (SAFE) */
+/* ---------- STEP 7 : GEMINI RERANK ---------- */
 
 let finalProducts = candidates.slice(0,5)
 
@@ -137,15 +159,15 @@ body:JSON.stringify({
 contents:[{
 parts:[{
 text:`
-User query:
+User search query:
 "${query}"
 
-Rank the following products by relevance.
-
-Return ONLY a JSON array of the best 5 products.
+Select the 5 most relevant products.
 
 Products:
 ${JSON.stringify(candidates)}
+
+Return JSON array of best products.
 `
 }]
 }]
@@ -156,7 +178,7 @@ ${JSON.stringify(candidates)}
 const rankData = await rankResponse.json()
 
 let text =
-rankData.candidates?.[0]?.content?.parts?.[0]?.text || ""
+rankData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
 
 text = text.replace(/```json|```/g,"").trim()
 
@@ -168,11 +190,21 @@ finalProducts = parsed
 
 }catch(e){
 
-console.log("Gemini ranking failed — using vector results")
+console.log("Gemini ranking failed, using vector results")
 
 }
 
-/* STEP 7 — return */
+
+/* ---------- STEP 8 : RETURN ---------- */
+
+if(finalProducts.length === 0){
+
+return res.json({
+message:`No results found for "${query}"`,
+products:[]
+})
+
+}
 
 res.json({
 query,
