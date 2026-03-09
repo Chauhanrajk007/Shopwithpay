@@ -4,8 +4,6 @@ export default async function handler(req,res){
 
 try{
 
-/* ---------- Parse request ---------- */
-
 let body = req.body
 
 if(typeof body === "string"){
@@ -19,90 +17,25 @@ return res.status(400).json({error:"Query missing"})
 }
 
 
-/* ---------- STEP 1 : Gemini understands the query ---------- */
-
-const parseResponse = await fetch(
-`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-contents:[
-{
-parts:[
-{
-text:`Extract product search filters from this shopping query.
-
-Return ONLY JSON.
-
-Query: "${query}"
-
-Example output:
-{
-"product":"gaming mouse",
-"max_price":2000
-}`
-}
-]
-}
-]
-})
-}
-)
-
-const parseData = await parseResponse.json()
-
-let parsedText =
-parseData.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
-
-parsedText = parsedText.replace(/```json|```/g,"").trim()
-
-let parsed = {}
-
-try{
-parsed = JSON.parse(parsedText)
-}catch{
-parsed = { product: query }
-}
-
-const productQuery = parsed.product || query
-const maxPrice = parsed.max_price || null
-
-
-/* ---------- STEP 2 : Create embedding ---------- */
+/* STEP 1 — Create embedding */
 
 const embedResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
 {
 method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
+headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
-content:{
-parts:[
-{ text: productQuery }
-]
-}
+content:{ parts:[{ text: query }] }
 })
 }
 )
 
 const embedData = await embedResponse.json()
 
-if(!embedData.embedding){
-return res.status(500).json({
-error:"Embedding failed",
-embedData
-})
-}
-
 const queryVector = embedData.embedding.values
 
 
-/* ---------- STEP 3 : Connect MongoDB ---------- */
+/* STEP 2 — Vector retrieval */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -110,48 +43,77 @@ await client.connect()
 
 const db = client.db("ragDB")
 
-
-/* ---------- STEP 4 : Vector search ---------- */
-
-const results = await db.collection("products").aggregate([
+const candidates = await db.collection("products").aggregate([
 {
 $vectorSearch:{
 index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
-numCandidates:50,
-limit:10
+numCandidates:100,
+limit:15
 }
 }
 ]).toArray()
 
 
-/* ---------- STEP 5 : Apply price filter only ---------- */
+/* STEP 3 — Ask Gemini to filter results */
 
-let filtered = results
+const geminiResponse = await fetch(
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
+contents:[{
+parts:[{
+text:`User search query: "${query}"
 
-if(maxPrice){
-filtered = filtered.filter(p => p.price <= maxPrice)
+Products:
+${JSON.stringify(candidates)}
+
+Return ONLY the relevant products that match the user request.
+
+Example:
+If query = gaming mouse under 2000
+Remove items above 2000 or unrelated categories.
+
+Return JSON array of products only.`
+}]
+}]
+})
+}
+)
+
+const geminiData = await geminiResponse.json()
+
+let text =
+geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
+
+text = text.replace(/```json|```/g,"").trim()
+
+let finalProducts = []
+
+try{
+finalProducts = JSON.parse(text)
+}catch{
+finalProducts = candidates.slice(0,5)
 }
 
 
-/* ---------- STEP 6 : Handle no results ---------- */
+/* STEP 4 — Return results */
 
-if(filtered.length === 0){
+if(finalProducts.length === 0){
 
 return res.json({
-message:`No results found for "${productQuery}"`,
+message:`No results found for "${query}"`,
 products:[]
 })
 
 }
 
-
-/* ---------- STEP 7 : Return results ---------- */
-
 res.json({
-message:`Results for "${productQuery}"`,
-products:filtered
+message:`Results for "${query}"`,
+products:finalProducts
 })
 
 }catch(err){
