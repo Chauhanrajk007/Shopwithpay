@@ -4,6 +4,8 @@ export default async function handler(req,res){
 
 try{
 
+/* ---------- parse request ---------- */
+
 let body = req.body
 
 if(typeof body === "string"){
@@ -16,9 +18,63 @@ if(!query){
 return res.status(400).json({error:"Query missing"})
 }
 
-/* create embedding */
 
-const response = await fetch(
+/* ---------- STEP 1 : Gemini query parsing ---------- */
+
+const parseResponse = await fetch(
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+contents:[
+{
+parts:[
+{
+text:`Extract product search filters from this shopping query.
+
+Return ONLY JSON.
+
+Query: "${query}"
+
+Example output:
+{
+"product":"gaming mouse",
+"max_price":2000
+}`
+}
+]
+}
+]
+})
+}
+)
+
+const parseData = await parseResponse.json()
+
+let parsedText = parseData.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
+
+/* clean possible extra text */
+
+parsedText = parsedText.replace(/```json|```/g,"").trim()
+
+let parsed = {}
+
+try{
+parsed = JSON.parse(parsedText)
+}catch{
+parsed = { product: query }
+}
+
+const productQuery = parsed.product || query
+const maxPrice = parsed.max_price || null
+
+
+/* ---------- STEP 2 : Create embedding ---------- */
+
+const embedResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
 {
 method:"POST",
@@ -27,28 +83,36 @@ headers:{
 },
 body:JSON.stringify({
 content:{
-parts:[{text:query}]
+parts:[
+{ text: productQuery }
+]
 }
 })
 }
 )
 
-const embedData = await response.json()
+const embedData = await embedResponse.json()
 
 if(!embedData.embedding){
-return res.status(500).json({error:"Embedding failed",embedData})
+return res.status(500).json({
+error:"Embedding failed",
+embedData
+})
 }
 
 const queryVector = embedData.embedding.values
 
 
-console.log("Query vector length:", queryVector.length)
+/* ---------- STEP 3 : MongoDB connection ---------- */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
 await client.connect()
 
 const db = client.db("ragDB")
+
+
+/* ---------- STEP 4 : Vector search ---------- */
 
 const results = await db.collection("products").aggregate([
 {
@@ -57,12 +121,24 @@ index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
 numCandidates:20,
-limit:5
+limit:10
 }
 }
 ]).toArray()
 
-res.json(results)
+
+/* ---------- STEP 5 : Apply price filter ---------- */
+
+let filtered = results
+
+if(maxPrice){
+filtered = results.filter(p => p.price <= maxPrice)
+}
+
+
+/* ---------- STEP 6 : return results ---------- */
+
+res.json(filtered)
 
 }catch(err){
 
