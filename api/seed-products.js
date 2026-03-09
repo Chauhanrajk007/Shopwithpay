@@ -5,7 +5,7 @@ export default async function handler(req,res){
 try{
 
 const products = [
-
+/* YOUR PRODUCTS EXACTLY SAME */
 {
 name:"Logitech G102 Gaming Mouse",
 description:"RGB wired gaming mouse with high precision sensor for PC gaming",
@@ -231,7 +231,6 @@ price:8200,
 rating:4.7,
 reviews:2400
 }
-
 ]
 
 const client = new MongoClient(process.env.MONGODB_URI)
@@ -247,38 +246,29 @@ const text = p.name + " " + p.description
 const response = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
 {
-method: "POST",
-headers: {
-"Content-Type": "application/json"
+method:"POST",
+headers:{
+"Content-Type":"application/json"
 },
-body: JSON.stringify({
+body:JSON.stringify({
 content:{
 parts:[
-{ text: text }
+{ text:text }
 ]
 }
 })
 }
 )
 
-const data = await response.json()
+const embedData = await response.json()
 
-console.log("Gemini response:", data)
+console.log("Gemini response:",embedData)
 
-if(!data.embedding || !data.embedding.values){
-throw new Error("Embedding API failed → " + JSON.stringify(data))
+if(!embedData.embedding || !embedData.embedding.values){
+throw new Error("Embedding API failed → " + JSON.stringify(embedData))
 }
 
-const embedding = data.embedding.values
-
-const data = await response.json()
-
-console.log("Gemini response:",data)
-
-if (!data.embedding|| !ata.embeding.values){ 
-throw new Error("Embedding API failes "+JSON.stringify(data))}
-
-const embedding = data.embedding.values
+const embedding = embedData.embedding.values
 
 await db.collection("products").insertOne({
 ...p,
