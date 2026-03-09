@@ -1,12 +1,15 @@
 import { MongoClient } from "mongodb"
+import { GoogleGenerativeAI } from "@google/generative-ai"
 
 export default async function handler(req,res){
 
-const { GoogleGenerativeAI } = await import("@google/generative-ai")
+try{
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
-const model = genAI.getGenerativeModel({ model: "embedding-001" })
+const model = genAI.getGenerativeModel({
+model:"embedding-001"
+})
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -18,22 +21,31 @@ const products = await db.collection("products").find({}).toArray()
 
 for(const p of products){
 
-const text = p.name + " " + p.description
+const text = (p.name || "") + " " + (p.description || "")
 
-const result = await model.embedContent(text)
+const result = await model.embedContent({
+content:{
+parts:[{text}]
+}
+})
 
 const embedding = result.embedding.values
 
 await db.collection("products").updateOne(
-
 { _id:p._id },
-
-{ $set:{ embedding } }
-
+{ $set:{embedding} }
 )
 
 }
 
-res.json({message:"Embeddings generated"})
+res.json({message:"Embeddings generated successfully"})
+
+}catch(err){
+
+console.error(err)
+
+res.status(500).json({error:err.message})
+
+}
 
 }
