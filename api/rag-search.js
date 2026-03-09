@@ -14,6 +14,7 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
+model:"models/text-embedding-004",
 content:{
 parts:[{text:query}]
 }
@@ -32,7 +33,6 @@ await client.connect()
 const db = client.db("ragDB")
 
 const results = await db.collection("products").aggregate([
-
 {
 $vectorSearch:{
 index:"product_vector",
@@ -42,7 +42,6 @@ numCandidates:100,
 limit:5
 }
 }
-
 ]).toArray()
 
 res.json(results)
