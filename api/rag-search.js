@@ -1,5 +1,4 @@
 import { MongoClient } from "mongodb"
-import { GoogleGenerativeAI } from "@google/generative-ai"
 
 export default async function handler(req,res){
 
@@ -7,17 +6,24 @@ try{
 
 const {query} = req.body
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-
-const embeddingModel = genAI.getGenerativeModel({
-model:"models/embedding-001"
+const response = await fetch(
+`https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${process.env.GEMINI_API_KEY}`,
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+content:{
+parts:[{text:query}]
+}
 })
+}
+)
 
-const embed = await embeddingModel.embedContent({
-content:{parts:[{text:query}]}
-})
+const data = await response.json()
 
-const queryVector = embed.embedding.values
+const queryVector = data.embedding.values
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
