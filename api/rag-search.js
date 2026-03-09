@@ -19,7 +19,7 @@ return res.status(400).json({error:"Query missing"})
 }
 
 
-/* ---------- STEP 1 : Gemini query understanding ---------- */
+/* ---------- STEP 1 : Gemini understands the query ---------- */
 
 const parseResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -33,7 +33,7 @@ contents:[
 {
 parts:[
 {
-text:`Extract shopping filters from this query.
+text:`Extract product search filters from this shopping query.
 
 Return ONLY JSON.
 
@@ -120,27 +120,15 @@ index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
 numCandidates:50,
-limit:20
+limit:10
 }
 }
 ]).toArray()
 
 
-/* ---------- STEP 5 : Hybrid filtering ---------- */
+/* ---------- STEP 5 : Apply price filter only ---------- */
 
 let filtered = results
-
-/* keyword filter */
-
-filtered = filtered.filter(p =>
-
-(p.name + " " + p.description + " " + p.category)
-.toLowerCase()
-.includes(productQuery.toLowerCase())
-
-)
-
-/* price filter */
 
 if(maxPrice){
 filtered = filtered.filter(p => p.price <= maxPrice)
