@@ -5,7 +5,7 @@ export default async function handler(req,res){
 try{
 
 /* -------------------------
-Parse Request
+Parse request
 ------------------------- */
 
 let body = req.body
@@ -23,61 +23,21 @@ return res.status(400).json({error:"Query missing"})
 
 /* -------------------------
 STEP 1
-Gemini Query Understanding
+Extract price from query
 ------------------------- */
 
-const parseResponse = await fetch(
-`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-contents:[{
-parts:[{
-text:`
-Extract structured search intent from this shopping query.
+let maxPrice = null
 
-Query: "${query}"
+const priceMatch = query.match(/(\d+)/)
 
-Return JSON only.
-
-Example:
-
-{
- "product":"gaming mouse",
- "category":"computer accessories",
- "max_price":2000
+if(priceMatch){
+maxPrice = parseInt(priceMatch[1])
 }
-`
-}]
-}]
-})
-}
-)
-
-const parseData = await parseResponse.json()
-
-let parsedText =
-parseData.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
-
-parsedText = parsedText.replace(/```json|```/g,"").trim()
-
-let parsed = {}
-
-try{
-parsed = JSON.parse(parsedText)
-}catch{
-parsed = { product: query }
-}
-
-const productQuery = parsed.product || query
-const maxPrice = parsed.max_price || null
-const category = parsed.category || null
 
 
 /* -------------------------
 STEP 2
-Create Embedding
+Create embedding
 ------------------------- */
 
 const embedResponse = await fetch(
@@ -87,7 +47,7 @@ method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
 content:{
-parts:[{ text: productQuery }]
+parts:[{ text: query }]
 }
 })
 }
@@ -116,7 +76,7 @@ const db = client.db("ragDB")
 
 /* -------------------------
 STEP 4
-Vector Retrieval
+Vector search
 ------------------------- */
 
 let candidates = await db.collection("products").aggregate([
@@ -125,7 +85,7 @@ $vectorSearch:{
 index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
-numCandidates:200,
+numCandidates:300,
 limit:30
 }
 }
@@ -134,14 +94,8 @@ limit:30
 
 /* -------------------------
 STEP 5
-Deterministic Filtering
+Price filtering
 ------------------------- */
-
-if(category){
-candidates = candidates.filter(p =>
-(p.category || "").toLowerCase().includes(category.toLowerCase())
-)
-}
 
 if(maxPrice){
 candidates = candidates.filter(p => p.price <= maxPrice)
@@ -150,10 +104,10 @@ candidates = candidates.filter(p => p.price <= maxPrice)
 
 /* -------------------------
 STEP 6
-LLM Reranking
+LLM reranking
 ------------------------- */
 
-const rerankResponse = await fetch(
+const geminiResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
 {
 method:"POST",
@@ -170,7 +124,7 @@ Rank these products by relevance.
 Products:
 ${JSON.stringify(candidates)}
 
-Return JSON array of the best 5 products.
+Return JSON array of the best 5 products only.
 `
 }]
 }]
@@ -178,10 +132,10 @@ Return JSON array of the best 5 products.
 }
 )
 
-const rerankData = await rerankResponse.json()
+const geminiData = await geminiResponse.json()
 
 let rankedText =
-rerankData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
+geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
 
 rankedText = rankedText.replace(/```json|```/g,"").trim()
 
@@ -196,7 +150,7 @@ finalProducts = candidates.slice(0,5)
 
 /* -------------------------
 STEP 7
-Return Results
+Return results
 ------------------------- */
 
 if(finalProducts.length === 0){
