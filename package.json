@@ -2,6 +2,7 @@
   "name": "agentic-wallet",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "razorpay": "^2.9.2",
     "mongodb": "^6.3.0",
