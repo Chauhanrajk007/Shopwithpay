@@ -4,10 +4,6 @@ export default async function handler(req,res){
 
 try{
 
-/* -------------------------
-Parse request
-------------------------- */
-
 let body = req.body
 
 if(typeof body === "string"){
@@ -21,24 +17,57 @@ return res.status(400).json({error:"Query missing"})
 }
 
 
-/* -------------------------
-STEP 1
-Extract price from query
-------------------------- */
+/* STEP 1 — Gemini query understanding */
 
-let maxPrice = null
+const intentResponse = await fetch(
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
+contents:[{
+parts:[{
+text:`
+You are an AI search query parser.
 
-const priceMatch = query.match(/(\d+)/)
+Extract structured product search intent.
 
-if(priceMatch){
-maxPrice = parseInt(priceMatch[1])
+User query:
+"${query}"
+
+Return ONLY JSON:
+
+{
+"product":"string",
+"max_price":number or null
+}
+`
+}]
+}]
+})
+}
+)
+
+const intentData = await intentResponse.json()
+
+let intentText =
+intentData.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
+
+intentText = intentText.replace(/```json|```/g,"").trim()
+
+let intent = {}
+
+try{
+intent = JSON.parse(intentText)
+}catch{
+intent = {product:query,max_price:null}
 }
 
+const searchPhrase = intent.product || query
+const maxPrice = intent.max_price || null
 
-/* -------------------------
-STEP 2
-Create embedding
-------------------------- */
+
+/* STEP 2 — Create embedding */
 
 const embedResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
@@ -47,7 +76,7 @@ method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
 content:{
-parts:[{ text: query }]
+parts:[{text:searchPhrase}]
 }
 })
 }
@@ -62,10 +91,7 @@ return res.status(500).json({error:"Embedding failed"})
 const queryVector = embedData.embedding.values
 
 
-/* -------------------------
-STEP 3
-Connect MongoDB
-------------------------- */
+/* STEP 3 — MongoDB connection */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -74,10 +100,7 @@ await client.connect()
 const db = client.db("ragDB")
 
 
-/* -------------------------
-STEP 4
-Vector search
-------------------------- */
+/* STEP 4 — Vector search */
 
 let candidates = await db.collection("products").aggregate([
 {
@@ -92,22 +115,16 @@ limit:30
 ]).toArray()
 
 
-/* -------------------------
-STEP 5
-Price filtering
-------------------------- */
+/* STEP 5 — Price filtering */
 
 if(maxPrice){
 candidates = candidates.filter(p => p.price <= maxPrice)
 }
 
 
-/* -------------------------
-STEP 6
-LLM reranking
-------------------------- */
+/* STEP 6 — Gemini reranking */
 
-const geminiResponse = await fetch(
+const rankResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
 {
 method:"POST",
@@ -116,7 +133,7 @@ body:JSON.stringify({
 contents:[{
 parts:[{
 text:`
-User query:
+User search query:
 "${query}"
 
 Rank these products by relevance.
@@ -124,7 +141,7 @@ Rank these products by relevance.
 Products:
 ${JSON.stringify(candidates)}
 
-Return JSON array of the best 5 products only.
+Return JSON array of best 5 products only.
 `
 }]
 }]
@@ -132,10 +149,10 @@ Return JSON array of the best 5 products only.
 }
 )
 
-const geminiData = await geminiResponse.json()
+const rankData = await rankResponse.json()
 
 let rankedText =
-geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
+rankData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
 
 rankedText = rankedText.replace(/```json|```/g,"").trim()
 
@@ -148,20 +165,11 @@ finalProducts = candidates.slice(0,5)
 }
 
 
-/* -------------------------
-STEP 7
-Return results
-------------------------- */
-
-if(finalProducts.length === 0){
-return res.json({
-message:`No results found for "${query}"`,
-products:[]
-})
-}
+/* STEP 7 — return */
 
 res.json({
-message:`Results for "${query}"`,
+query,
+parsed_intent:intent,
 products:finalProducts
 })
 
