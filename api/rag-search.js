@@ -122,7 +122,11 @@ candidates = candidates.filter(p => p.price <= maxPrice)
 }
 
 
-/* STEP 6 — Gemini reranking */
+/* STEP 6 — Gemini reranking (SAFE) */
+
+let finalProducts = candidates.slice(0,5)
+
+try{
 
 const rankResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -133,15 +137,15 @@ body:JSON.stringify({
 contents:[{
 parts:[{
 text:`
-User search query:
+User query:
 "${query}"
 
-Rank these products by relevance.
+Rank the following products by relevance.
+
+Return ONLY a JSON array of the best 5 products.
 
 Products:
 ${JSON.stringify(candidates)}
-
-Return JSON array of best 5 products only.
 `
 }]
 }]
@@ -151,19 +155,22 @@ Return JSON array of best 5 products only.
 
 const rankData = await rankResponse.json()
 
-let rankedText =
-rankData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
+let text =
+rankData.candidates?.[0]?.content?.parts?.[0]?.text || ""
 
-rankedText = rankedText.replace(/```json|```/g,"").trim()
+text = text.replace(/```json|```/g,"").trim()
 
-let finalProducts = []
+const parsed = JSON.parse(text)
 
-try{
-finalProducts = JSON.parse(rankedText)
-}catch{
-finalProducts = candidates.slice(0,5)
+if(Array.isArray(parsed) && parsed.length > 0){
+finalProducts = parsed
 }
 
+}catch(e){
+
+console.log("Gemini ranking failed — using vector results")
+
+}
 
 /* STEP 7 — return */
 
