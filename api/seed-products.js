@@ -245,16 +245,31 @@ for(const p of products){
 const text = p.name + " " + p.description
 
 const response = await fetch(
-`https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${process.env.GEMINI_API_KEY}`,
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
 {
-method:"POST",
-headers:{ "Content-Type":"application/json" },
+method: "POST",
+headers: {
+"Content-Type": "application/json"
+},
 body: JSON.stringify({
-model:"models/text-embedding-004",
-content:{ parts:[{text}] }
+content:{
+parts:[
+{ text: text }
+]
+}
 })
 }
 )
+
+const data = await response.json()
+
+console.log("Gemini response:", data)
+
+if(!data.embedding || !data.embedding.values){
+throw new Error("Embedding API failed → " + JSON.stringify(data))
+}
+
+const embedding = data.embedding.values
 
 const data = await response.json()
 
