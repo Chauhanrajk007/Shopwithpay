@@ -81,6 +81,12 @@ return
 }
 
 /* render results */
+if(!Array.isArray(data)){
+console.log("API ERROR:",data)
+document.getElementById("products").innerHTML =
+"<p class='text-red-500'>Search failed</p>"
+return
+}
 
 data.forEach(p => {
 
