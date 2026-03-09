@@ -4,7 +4,7 @@ export default async function handler(req,res){
 
 try{
 
-/* ---------- parse request ---------- */
+/* ---------- Parse request ---------- */
 
 let body = req.body
 
@@ -19,7 +19,7 @@ return res.status(400).json({error:"Query missing"})
 }
 
 
-/* ---------- STEP 1 : Gemini query parsing ---------- */
+/* ---------- STEP 1 : Gemini query understanding ---------- */
 
 const parseResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -33,13 +33,13 @@ contents:[
 {
 parts:[
 {
-text:`Extract product search filters from this shopping query.
+text:`Extract shopping filters from this query.
 
 Return ONLY JSON.
 
 Query: "${query}"
 
-Example:
+Example output:
 {
 "product":"gaming mouse",
 "max_price":2000
@@ -93,13 +93,16 @@ parts:[
 const embedData = await embedResponse.json()
 
 if(!embedData.embedding){
-return res.status(500).json({error:"Embedding failed",embedData})
+return res.status(500).json({
+error:"Embedding failed",
+embedData
+})
 }
 
 const queryVector = embedData.embedding.values
 
 
-/* ---------- STEP 3 : MongoDB connection ---------- */
+/* ---------- STEP 3 : Connect MongoDB ---------- */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -127,7 +130,7 @@ limit:20
 
 let filtered = results
 
-/* product keyword filter */
+/* keyword filter */
 
 filtered = filtered.filter(p =>
 
@@ -144,16 +147,24 @@ filtered = filtered.filter(p => p.price <= maxPrice)
 }
 
 
-/* ---------- STEP 6 : fallback if nothing found ---------- */
+/* ---------- STEP 6 : Handle no results ---------- */
 
 if(filtered.length === 0){
-filtered = results.slice(0,5)
+
+return res.json({
+message:`No results found for "${productQuery}"`,
+products:[]
+})
+
 }
 
 
-/* ---------- STEP 7 : return results ---------- */
+/* ---------- STEP 7 : Return results ---------- */
 
-res.json(filtered)
+res.json({
+message:`Results for "${productQuery}"`,
+products:filtered
+})
 
 }catch(err){
 
