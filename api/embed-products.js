@@ -5,7 +5,6 @@ export default async function handler(req,res){
 try{
 
 const client = new MongoClient(process.env.MONGODB_URI)
-
 await client.connect()
 
 const db = client.db("ragDB")
@@ -24,14 +23,22 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
+model:"models/text-embedding-004",
 content:{
-parts:[{text}]
+parts:[{text:text}]
 }
 })
 }
 )
 
 const data = await response.json()
+
+/* DEBUG */
+console.log("Gemini response:", data)
+
+if(!data.embedding){
+throw new Error("Embedding not returned: " + JSON.stringify(data))
+}
 
 const embedding = data.embedding.values
 
