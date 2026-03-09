@@ -14,6 +14,8 @@
 
 <body class="bg-gray-100">
 
+<!-- NAVBAR -->
+
 <nav class="bg-white shadow p-4 flex justify-between">
 
 <div class="font-bold text-xl">
@@ -26,10 +28,12 @@ Voice Search
 
 </nav>
 
+<!-- RESULTS -->
+
 <div class="p-10">
 
 <h1 class="text-3xl font-bold mb-2">
-Search Results
+AI Search Results
 </h1>
 
 <p id="queryText" class="text-gray-500 mb-8"></p>
@@ -40,30 +44,34 @@ Search Results
 
 <script>
 
-const query = (localStorage.getItem("query") || "").toLowerCase()
+/* voice query */
+
+const query = localStorage.getItem("query") || ""
 
 document.getElementById("queryText").innerText =
-"Showing results for: " + query
+"AI searching for: " + query
 
 async function loadProducts(){
 
-const res = await fetch("/api/server?action=products")
+const res = await fetch("/api/rag-search",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({query})
+
+})
 
 const data = await res.json()
 
-/* semantic filtering */
-
-const filtered = data.filter(p =>
-
-(p.name + " " + (p.description || ""))
-.toLowerCase()
-.includes(query)
-
-)
-
 const container = document.getElementById("products")
 
-if(filtered.length === 0){
+container.innerHTML = ""
+
+if(data.length === 0){
 
 container.innerHTML =
 "<p class='text-gray-500'>No products found</p>"
@@ -72,7 +80,9 @@ return
 
 }
 
-filtered.forEach(p => {
+/* render results */
+
+data.forEach(p => {
 
 container.innerHTML += `
 
@@ -82,8 +92,12 @@ container.innerHTML += `
 ${p.name}
 </h2>
 
-<p class="text-gray-600 mb-4">
+<p class="text-gray-600 mb-2">
 ₹${p.price}
+</p>
+
+<p class="text-gray-500 text-sm mb-4">
+${p.description || ""}
 </p>
 
 <button
@@ -99,6 +113,8 @@ Buy Now
 })
 
 }
+
+/* Razorpay payment */
 
 async function buy(price){
 
@@ -124,7 +140,9 @@ currency:"INR",
 order_id:data.order.id,
 
 handler:function(){
+
 alert("Payment Successful")
+
 }
 
 }
