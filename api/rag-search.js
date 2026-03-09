@@ -4,8 +4,12 @@ export default async function handler(req,res){
 
 try{
 
-const {query} = req.body || {}
+const body = req.body || {}
+const query = body.query
 
+if(!query){
+return res.status(400).json({error:"Query missing"})
+}
 /* create embedding for query */
 
 const response = await fetch(
