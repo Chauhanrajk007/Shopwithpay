@@ -7,8 +7,9 @@ try{
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
-const model = genAI.getGenerativeModel({
-model:"embedding-001"
+/* Correct embedding model */
+const embeddingModel = genAI.getGenerativeModel({
+model:"models/embedding-001"
 })
 
 const client = new MongoClient(process.env.MONGODB_URI)
@@ -23,17 +24,15 @@ for(const p of products){
 
 const text = (p.name || "") + " " + (p.description || "")
 
-const result = await model.embedContent({
-content:{
-parts:[{text}]
-}
+const result = await embeddingModel.embedContent({
+content:{parts:[{text}]}
 })
 
 const embedding = result.embedding.values
 
 await db.collection("products").updateOne(
-{ _id:p._id },
-{ $set:{embedding} }
+{_id:p._id},
+{$set:{embedding}}
 )
 
 }
