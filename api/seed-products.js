@@ -258,6 +258,11 @@ content:{ parts:[{text}] }
 
 const data = await response.json()
 
+console.log("Gemini response:",data)
+
+if (!data.embedding|| !ata.embeding.values){ 
+throw new Error("Embedding API failes "+JSON.stringify(data))}
+
 const embedding = data.embedding.values
 
 await db.collection("products").insertOne({
