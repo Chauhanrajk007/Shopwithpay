@@ -1,67 +1,23 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-
-<title>Search Results</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-
-</head>
-
-<body class="bg-gray-100">
-
-<!-- NAVBAR -->
-
-<nav class="bg-white shadow p-4 flex justify-between">
-
-<div class="font-bold text-xl">
-Agentic Wallet
-</div>
-
-<a href="index.html" class="text-blue-500">
-Voice Search
-</a>
-
-</nav>
-
-<!-- RESULTS -->
-
-<div class="p-10">
-
-<h1 class="text-3xl font-bold mb-2">
-AI Search Results
-</h1>
-
-<p id="queryText" class="text-gray-500 mb-8"></p>
-
-<div id="products" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
-
-</div>
-
 <script>
 
 /* voice query */
-const query = localStorage.getItem("query") || " "
+
+const query = localStorage.getItem("query") || ""
 
 document.getElementById("queryText").innerText =
 "AI searching for: " + query
 
+
 async function loadProducts(){
 
+try{
+
 const res = await fetch("/api/rag-search",{
-
 method:"POST",
-
 headers:{
 "Content-Type":"application/json"
 },
-
 body:JSON.stringify({query})
-
 })
 
 const data = await res.json()
@@ -70,22 +26,29 @@ const container = document.getElementById("products")
 
 container.innerHTML = ""
 
-if(data.length === 0){
+/* if API returned error */
+
+if(data.error){
 
 container.innerHTML =
-"<p class='text-gray-500'>No products found</p>"
-
-return
-
-}
-
-/* render results */
-if(!Array.isArray(data)){
-console.log("API ERROR:",data)
-document.getElementById("products").innerHTML =
 "<p class='text-red-500'>Search failed</p>"
+
 return
+
 }
+
+/* if no products */
+
+if(!data.products || data.products.length === 0){
+
+container.innerHTML =
+`<p class="text-gray-500">${data.message || "No products found"}</p>`
+
+return
+
+}
+
+/* render products */
 
 data.products.forEach(p => {
 
@@ -117,22 +80,26 @@ Buy Now
 
 })
 
+}catch(err){
+
+document.getElementById("products").innerHTML =
+"<p class='text-red-500'>Search failed</p>"
+
 }
+
+}
+
 
 /* Razorpay payment */
 
 async function buy(price){
 
 const res = await fetch("/api/create-order",{
-
 method:"POST",
-
 headers:{
 "Content-Type":"application/json"
 },
-
 body:JSON.stringify({amount:price})
-
 })
 
 const data = await res.json()
@@ -161,6 +128,3 @@ rzp.open()
 loadProducts()
 
 </script>
-
-</body>
-</html>
