@@ -4,7 +4,7 @@ export default async function handler(req,res){
 
 try{
 
-const {query} = req.body
+const {query} = req.body || {}
 
 /* create embedding for query */
 
