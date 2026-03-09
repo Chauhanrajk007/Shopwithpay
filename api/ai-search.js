@@ -2,7 +2,42 @@ import { MongoClient } from "mongodb"
 
 export default async function handler(req,res){
 
+try{
+
 const {query} = req.body
+
+/* 1️⃣ create embedding for query */
+
+const response = await fetch(
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+content:{
+parts:[
+{ text: query }
+]
+}
+})
+}
+)
+
+const data = await response.json()
+
+if(!data.embedding || !data.embedding.values){
+
+throw new Error(
+"Embedding API failed → " + JSON.stringify(data)
+)
+
+}
+
+const queryVector = data.embedding.values
+
+/* 2️⃣ connect MongoDB */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -10,16 +45,28 @@ await client.connect()
 
 const db = client.db("ragDB")
 
-const products = await db.collection("products").find({}).toArray()
+/* 3️⃣ vector search */
 
-const filtered = products.filter(p =>
+const results = await db.collection("products").aggregate([
+{
+$vectorSearch:{
+index:"product_vector",
+path:"embedding",
+queryVector:queryVector,
+numCandidates:100,
+limit:5
+}
+}
+]).toArray()
 
-(p.name + " " + p.description)
-.toLowerCase()
-.includes(query.toLowerCase())
+res.json(results)
 
-)
+}catch(err){
 
-res.json(filtered)
+console.error(err)
+
+res.status(500).json({error:err.message})
+
+}
 
 }
