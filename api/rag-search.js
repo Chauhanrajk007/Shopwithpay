@@ -41,6 +41,9 @@ return res.status(500).json({error:"Embedding failed",embedData})
 
 const queryVector = embedData.embedding.values
 
+
+console.log("Query vector length:", queryVector.length)
+
 const client = new MongoClient(process.env.MONGODB_URI)
 
 await client.connect()
