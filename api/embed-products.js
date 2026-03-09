@@ -6,7 +6,7 @@ const { GoogleGenerativeAI } = await import("@google/generative-ai")
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
-const model = genAI.getGenerativeModel({ model: "text-embedding-004" })
+const model = genAI.getGenerativeModel({ model: "embedding-001" })
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
