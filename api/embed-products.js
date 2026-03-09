@@ -1,16 +1,8 @@
 import { MongoClient } from "mongodb"
-import { GoogleGenerativeAI } from "@google/generative-ai"
 
 export default async function handler(req,res){
 
 try{
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-
-/* Correct embedding model */
-const embeddingModel = genAI.getGenerativeModel({
-model:"models/embedding-001"
-})
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -24,11 +16,24 @@ for(const p of products){
 
 const text = (p.name || "") + " " + (p.description || "")
 
-const result = await embeddingModel.embedContent({
-content:{parts:[{text}]}
+const response = await fetch(
+`https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${process.env.GEMINI_API_KEY}`,
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+content:{
+parts:[{text}]
+}
 })
+}
+)
 
-const embedding = result.embedding.values
+const data = await response.json()
+
+const embedding = data.embedding.values
 
 await db.collection("products").updateOne(
 {_id:p._id},
