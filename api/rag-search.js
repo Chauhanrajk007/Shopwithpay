@@ -39,7 +39,7 @@ Return ONLY JSON.
 
 Query: "${query}"
 
-Example output:
+Example:
 {
 "product":"gaming mouse",
 "max_price":2000
@@ -54,9 +54,8 @@ Example output:
 
 const parseData = await parseResponse.json()
 
-let parsedText = parseData.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
-
-/* clean possible extra text */
+let parsedText =
+parseData.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
 
 parsedText = parsedText.replace(/```json|```/g,"").trim()
 
@@ -94,10 +93,7 @@ parts:[
 const embedData = await embedResponse.json()
 
 if(!embedData.embedding){
-return res.status(500).json({
-error:"Embedding failed",
-embedData
-})
+return res.status(500).json({error:"Embedding failed",embedData})
 }
 
 const queryVector = embedData.embedding.values
@@ -120,23 +116,42 @@ $vectorSearch:{
 index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
-numCandidates:20,
-limit:10
+numCandidates:50,
+limit:20
 }
 }
 ]).toArray()
 
 
-/* ---------- STEP 5 : Apply price filter ---------- */
+/* ---------- STEP 5 : Hybrid filtering ---------- */
 
 let filtered = results
 
+/* product keyword filter */
+
+filtered = filtered.filter(p =>
+
+(p.name + " " + p.description + " " + p.category)
+.toLowerCase()
+.includes(productQuery.toLowerCase())
+
+)
+
+/* price filter */
+
 if(maxPrice){
-filtered = results.filter(p => p.price <= maxPrice)
+filtered = filtered.filter(p => p.price <= maxPrice)
 }
 
 
-/* ---------- STEP 6 : return results ---------- */
+/* ---------- STEP 6 : fallback if nothing found ---------- */
+
+if(filtered.length === 0){
+filtered = results.slice(0,5)
+}
+
+
+/* ---------- STEP 7 : return results ---------- */
 
 res.json(filtered)
 
