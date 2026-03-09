@@ -45,7 +45,7 @@ AI Search Results
 <script>
 
 /* voice query */
-const query = "mouse"
+const query = localStorage.getItem("query") || " "
 
 document.getElementById("queryText").innerText =
 "AI searching for: " + query
