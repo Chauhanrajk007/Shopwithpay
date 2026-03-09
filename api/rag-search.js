@@ -9,14 +9,12 @@ const {query} = req.body
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
-const model = genAI.getGenerativeModel({
-model:"embedding-001"
+const embeddingModel = genAI.getGenerativeModel({
+model:"models/embedding-001"
 })
 
-const embed = await model.embedContent({
-content:{
-parts:[{text:query}]
-}
+const embed = await embeddingModel.embedContent({
+content:{parts:[{text:query}]}
 })
 
 const queryVector = embed.embedding.values
