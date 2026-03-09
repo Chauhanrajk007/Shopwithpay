@@ -1,49 +1,46 @@
 import { MongoClient } from "mongodb"
 
-export default async function handler(req,res){
+export default async function handler(req, res) {
 
-try{
-
-/* -------- READ QUERY -------- */
+try {
 
 let body = req.body
 
-if(typeof body === "string"){
+if (typeof body === "string") {
 body = JSON.parse(body)
 }
 
 const query = body?.query
 
-if(!query){
-return res.status(400).json({error:"Query missing"})
+if (!query) {
+return res.status(400).json({ error: "Query missing" })
 }
 
+/* STEP 1 — EMBEDDING */
 
-/* -------- STEP 1 : CREATE EMBEDDING -------- */
-
-const embedResponse = await fetch(
+const embedRes = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
 {
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-content:{
-parts:[{ text: query }]
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+content: {
+parts: [{ text: query }]
 }
 })
 }
 )
 
-const embedData = await embedResponse.json()
+const embedData = await embedRes.json()
 
-if(!embedData.embedding){
-return res.status(500).json({error:"Embedding failed"})
+if (!embedData.embedding) {
+return res.status(500).json({ error: "Embedding failed" })
 }
 
 const queryVector = embedData.embedding.values
 
 
-/* -------- STEP 2 : CONNECT DATABASE -------- */
+/* STEP 2 — CONNECT DATABASE */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -52,58 +49,49 @@ await client.connect()
 const db = client.db("ragDB")
 
 
-/* -------- STEP 3 : VECTOR SEARCH -------- */
+/* STEP 3 — VECTOR SEARCH */
 
-let candidates = await db.collection("products").aggregate([
+const candidates = await db.collection("products").aggregate([
 {
-$vectorSearch:{
-index:"product_vector",
-path:"embedding",
-queryVector:queryVector,
-numCandidates:200,
-limit:20
+$vectorSearch: {
+index: "product_vector",
+path: "embedding",
+queryVector: queryVector,
+numCandidates: 200,
+limit: 15
 }
 }
 ]).toArray()
 
-if(candidates.length === 0){
-
+if (candidates.length === 0) {
 return res.json({
-message:`No products found near "${query}"`,
-products:[]
+query,
+products: []
 })
-
 }
 
 
-/* -------- STEP 4 : GEMINI RELEVANCE FILTER -------- */
+/* STEP 4 — GEMINI FILTERING */
 
-const geminiResponse = await fetch(
+const llmRes = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
 {
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-contents:[{
-parts:[{
-text:`
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+contents: [{
+parts: [{
+text: `
+User query: "${query}"
 
-User search query:
-"${query}"
+Below is a list of products.
 
-Below is a list of products with name, description and price.
-
-Select ONLY the products that match the user's request.
-
-Example:
-If user asks "gaming mouse under 2000",
-remove keyboards, monitors, expensive items etc.
+Select ONLY products relevant to the query.
 
 Products:
 ${JSON.stringify(candidates)}
 
-Return ONLY a JSON array of matching products.
-
+Return ONLY JSON array of relevant products.
 `
 }]
 }]
@@ -111,49 +99,41 @@ Return ONLY a JSON array of matching products.
 }
 )
 
-const geminiData = await geminiResponse.json()
+const llmData = await llmRes.json()
 
 let text =
-geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
+llmData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
 
-text = text.replace(/```json|```/g,"").trim()
+text = text.replace(/```json|```/g, "").trim()
 
 let finalProducts = []
 
-try{
-
+try {
 finalProducts = JSON.parse(text)
-
-}catch{
-
-console.log("Gemini parse failed — fallback to vector results")
-
-finalProducts = candidates.slice(0,5)
-
+} catch {
+finalProducts = candidates.slice(0, 5)
 }
 
 
-/* -------- RETURN -------- */
+/* FALLBACK */
 
-if(finalProducts.length === 0){
-
-return res.json({
-message:`No results found for "${query}"`,
-products:[]
-})
-
+if (!Array.isArray(finalProducts) || finalProducts.length === 0) {
+finalProducts = candidates.slice(0, 5)
 }
+
+
+/* RETURN */
 
 res.json({
 query,
-products:finalProducts
+products: finalProducts
 })
 
-}catch(err){
+} catch (err) {
 
 console.error(err)
 
-res.status(500).json({error:err.message})
+res.status(500).json({ error: err.message })
 
 }
 
