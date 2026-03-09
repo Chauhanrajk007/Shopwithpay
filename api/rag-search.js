@@ -10,7 +10,8 @@ const query = body.query
 if(!query){
 return res.status(400).json({error:"Query missing"})
 }
-/* create embedding for query */
+
+/* create embedding */
 
 const response = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
@@ -21,27 +22,15 @@ headers:{
 },
 body:JSON.stringify({
 content:{
-parts:[
-{ text: query }
-]
+parts:[{text:query}]
 }
 })
 }
 )
 
-const data = await response.json()
+const embedData = await response.json()
 
-if(!data.embedding || !data.embedding.values){
-
-throw new Error(
-"Embedding API failed → " + JSON.stringify(data)
-)
-
-}
-
-const queryVector = data.embedding.values
-
-/* connect MongoDB */
+const queryVector = embedData.embedding.values
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -51,17 +40,30 @@ const db = client.db("ragDB")
 
 /* vector search */
 
-const results = await db.collection("products").aggregate([
+let results = await db.collection("products").aggregate([
 {
 $vectorSearch:{
 index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
-numCandidates:20,
+numCandidates:100,
 limit:5
 }
 }
 ]).toArray()
+
+/* fallback keyword search */
+
+if(results.length === 0){
+
+results = await db.collection("products").find({
+$or:[
+{ name:{ $regex: query, $options:"i" }},
+{ description:{ $regex: query, $options:"i" }}
+]
+}).limit(5).toArray()
+
+}
 
 res.json(results)
 
