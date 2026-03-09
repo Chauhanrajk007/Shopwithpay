@@ -4,8 +4,6 @@ export default async function handler(req,res){
 
 try{
 
-/* ---------- READ REQUEST ---------- */
-
 let body = req.body
 
 if(typeof body === "string"){
@@ -18,8 +16,7 @@ if(!query){
 return res.status(400).json({error:"Query missing"})
 }
 
-
-/* ---------- STEP 1 : GEMINI QUERY UNDERSTANDING ---------- */
+/* ---------- STEP 1 : QUERY UNDERSTANDING ---------- */
 
 const intentResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -30,27 +27,16 @@ body:JSON.stringify({
 contents:[{
 parts:[{
 text:`
-You are an AI shopping search parser.
-
-Extract structured search intent.
+Extract the product the user wants.
 
 User query:
 "${query}"
 
-Return JSON ONLY:
+Return JSON:
 
 {
-"product":"main product type",
+"product":"main product",
 "max_price":number or null
-}
-
-Example:
-
-gaming headphones under 2000
-→
-{
-"product":"gaming headphones",
-"max_price":2000
 }
 `
 }]
@@ -71,7 +57,7 @@ let intent = {}
 try{
 intent = JSON.parse(intentText)
 }catch{
-intent = { product: query, max_price: null }
+intent = {product:query,max_price:null}
 }
 
 const productSearch = intent.product || query
@@ -87,7 +73,7 @@ method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
 content:{
-parts:[{ text: productSearch }]
+parts:[{text:productSearch}]
 }
 })
 }
@@ -102,7 +88,7 @@ return res.status(500).json({error:"Embedding failed"})
 const queryVector = embedData.embedding.values
 
 
-/* ---------- STEP 3 : CONNECT DATABASE ---------- */
+/* ---------- STEP 3 : DATABASE ---------- */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -120,21 +106,39 @@ index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
 numCandidates:300,
-limit:40
+limit:30
 }
 }
 ]).toArray()
 
+const originalCandidates = [...candidates]
 
-/* ---------- STEP 5 : KEYWORD FILTER ---------- */
 
-const keyword = productSearch.toLowerCase()
+/* ---------- STEP 5 : TOKEN FILTER ---------- */
 
-candidates = candidates.filter(p =>
-(p.name + " " + p.description)
+const tokens = productSearch
 .toLowerCase()
-.includes(keyword)
-)
+.split(" ")
+.filter(w => w.length > 2)
+
+if(tokens.length > 0){
+
+candidates = candidates.filter(p => {
+
+const text = (p.name + " " + p.description).toLowerCase()
+
+return tokens.some(t => text.includes(t))
+
+})
+
+}
+
+
+/* ---------- FALLBACK IF FILTER REMOVES EVERYTHING ---------- */
+
+if(candidates.length === 0){
+candidates = originalCandidates
+}
 
 
 /* ---------- STEP 6 : PRICE FILTER ---------- */
@@ -159,15 +163,15 @@ body:JSON.stringify({
 contents:[{
 parts:[{
 text:`
-User search query:
+User query:
 "${query}"
 
-Select the 5 most relevant products.
+Choose the 5 most relevant products.
 
 Products:
 ${JSON.stringify(candidates)}
 
-Return JSON array of best products.
+Return JSON array.
 `
 }]
 }]
@@ -190,12 +194,12 @@ finalProducts = parsed
 
 }catch(e){
 
-console.log("Gemini ranking failed, using vector results")
+console.log("Ranking failed, using vector results")
 
 }
 
 
-/* ---------- STEP 8 : RETURN ---------- */
+/* ---------- RETURN ---------- */
 
 if(finalProducts.length === 0){
 
