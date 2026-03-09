@@ -4,6 +4,10 @@ export default async function handler(req,res){
 
 try{
 
+/* -------------------------
+Parse Request
+------------------------- */
+
 let body = req.body
 
 if(typeof body === "string"){
@@ -16,7 +20,65 @@ if(!query){
 return res.status(400).json({error:"Query missing"})
 }
 
-/* STEP 1 — create embedding */
+
+/* -------------------------
+STEP 1
+Gemini Query Understanding
+------------------------- */
+
+const parseResponse = await fetch(
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
+contents:[{
+parts:[{
+text:`
+Extract structured search intent from this shopping query.
+
+Query: "${query}"
+
+Return JSON only.
+
+Example:
+
+{
+ "product":"gaming mouse",
+ "category":"computer accessories",
+ "max_price":2000
+}
+`
+}]
+}]
+})
+}
+)
+
+const parseData = await parseResponse.json()
+
+let parsedText =
+parseData.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
+
+parsedText = parsedText.replace(/```json|```/g,"").trim()
+
+let parsed = {}
+
+try{
+parsed = JSON.parse(parsedText)
+}catch{
+parsed = { product: query }
+}
+
+const productQuery = parsed.product || query
+const maxPrice = parsed.max_price || null
+const category = parsed.category || null
+
+
+/* -------------------------
+STEP 2
+Create Embedding
+------------------------- */
 
 const embedResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
@@ -25,7 +87,7 @@ method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
 content:{
-parts:[{ text: query }]
+parts:[{ text: productQuery }]
 }
 })
 }
@@ -39,7 +101,11 @@ return res.status(500).json({error:"Embedding failed"})
 
 const queryVector = embedData.embedding.values
 
-/* STEP 2 — connect MongoDB */
+
+/* -------------------------
+STEP 3
+Connect MongoDB
+------------------------- */
 
 const client = new MongoClient(process.env.MONGODB_URI)
 
@@ -47,68 +113,91 @@ await client.connect()
 
 const db = client.db("ragDB")
 
-/* STEP 3 — vector search */
 
-const candidates = await db.collection("products").aggregate([
+/* -------------------------
+STEP 4
+Vector Retrieval
+------------------------- */
+
+let candidates = await db.collection("products").aggregate([
 {
 $vectorSearch:{
 index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
-numCandidates:100,
-limit:15
+numCandidates:200,
+limit:30
 }
 }
 ]).toArray()
 
-/* STEP 4 — Gemini filters products */
 
-const geminiResponse = await fetch(
+/* -------------------------
+STEP 5
+Deterministic Filtering
+------------------------- */
+
+if(category){
+candidates = candidates.filter(p =>
+(p.category || "").toLowerCase().includes(category.toLowerCase())
+)
+}
+
+if(maxPrice){
+candidates = candidates.filter(p => p.price <= maxPrice)
+}
+
+
+/* -------------------------
+STEP 6
+LLM Reranking
+------------------------- */
+
+const rerankResponse = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
 {
 method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
-contents:[
-{
-parts:[
-{
-text:`User search query: "${query}"
+contents:[{
+parts:[{
+text:`
+User query:
+"${query}"
+
+Rank these products by relevance.
 
 Products:
 ${JSON.stringify(candidates)}
 
-Return ONLY the relevant products that match the user request.
-
-Example:
-If query = gaming mouse under 2000
-Remove items above 2000 or unrelated categories.
-
-Return JSON array of products only.`
-}
-]
-}
-]
+Return JSON array of the best 5 products.
+`
+}]
+}]
 })
 }
 )
 
-const geminiData = await geminiResponse.json()
+const rerankData = await rerankResponse.json()
 
-let text =
-geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
+let rankedText =
+rerankData.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
 
-text = text.replace(/```json|```/g,"").trim()
+rankedText = rankedText.replace(/```json|```/g,"").trim()
 
 let finalProducts = []
 
 try{
-finalProducts = JSON.parse(text)
+finalProducts = JSON.parse(rankedText)
 }catch{
 finalProducts = candidates.slice(0,5)
 }
 
-/* STEP 5 — return results */
+
+/* -------------------------
+STEP 7
+Return Results
+------------------------- */
 
 if(finalProducts.length === 0){
 return res.json({
