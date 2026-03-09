@@ -53,7 +53,7 @@ $vectorSearch:{
 index:"product_vector",
 path:"embedding",
 queryVector:queryVector,
-numCandidates:100,
+numCandidates:20,
 limit:5
 }
 }
